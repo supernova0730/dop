@@ -132,6 +132,8 @@ func (d *St) getCon(ctx context.Context) conSt {
 	return d.Con
 }
 
+// transaction
+
 func (d *St) getContextTransactionContainer(ctx context.Context) *txContainerSt {
 	contextV := ctx.Value(TransactionCtxKey)
 	if contextV == nil {
@@ -221,6 +223,8 @@ func (d *St) RenewContextTransaction(ctx context.Context) error {
 	return nil
 }
 
+// query
+
 func (d *St) DbExec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error) {
 	return d.getCon(ctx).Exec(ctx, sql, args...)
 }
@@ -247,7 +251,7 @@ func (d *St) queryRebindNamed(sql string, argMap map[string]interface{}) (string
 	if d.debug {
 		if strings.Index(resultQuery, "${") > -1 {
 			for _, x := range queryParamRegexp.FindAllString(resultQuery, 1) {
-				d.lg.Errorw("Missing param", nil, "param", x, "query", resultQuery)
+				d.lg.Errorw(ErrPrefix+": missing param", nil, "param", x, "query", resultQuery)
 			}
 		}
 	}
