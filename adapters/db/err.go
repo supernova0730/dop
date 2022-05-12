@@ -7,5 +7,6 @@ func (e Err) Error() string {
 }
 
 const (
-	ErrNoRows = Err("err_no_rows")
+	ErrNoRows        = Err("err_no_rows")
+	ErrBadColumnName = Err("bad_column_name")
 )

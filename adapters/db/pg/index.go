@@ -3,12 +3,11 @@ package pg
 import (
 	"context"
 	"database/sql"
-	"regexp"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/jackc/pgx/v4/stdlib" // driver
@@ -16,40 +15,12 @@ import (
 	"github.com/rendau/dop/adapters/logger"
 )
 
-const ErrPrefix = "pg-error"
-const TransactionCtxKey = "pg_transaction"
-
 type St struct {
 	debug bool
 	lg    logger.WarnAndError
 
 	Con *pgxpool.Pool
 }
-
-type OptionsSt struct {
-	Dsn               string
-	Timezone          string
-	MaxConns          int32
-	MinConns          int32
-	MaxConnLifetime   time.Duration
-	MaxConnIdleTime   time.Duration
-	HealthCheckPeriod time.Duration
-	LazyConnect       bool
-}
-
-type conSt interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
-}
-
-type txContainerSt struct {
-	tx pgx.Tx
-}
-
-var (
-	queryParamRegexp = regexp.MustCompile(`(?si)\$\{[^}]+\}`)
-)
 
 func New(debug bool, lg logger.WarnAndError, opts OptionsSt) (*St, error) {
 	cfg, err := opts.getConfig()
@@ -69,60 +40,6 @@ func New(debug bool, lg logger.WarnAndError, opts OptionsSt) (*St, error) {
 		lg:    lg,
 		Con:   dbPool,
 	}, nil
-}
-
-func (o OptionsSt) getConfig() (*pgxpool.Config, error) {
-	cfg, err := pgxpool.ParseConfig(o.Dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	// default values
-	cfg.ConnConfig.RuntimeParams["timezone"] = "Asia/Almaty"
-	cfg.MaxConns = 100
-	cfg.MinConns = 5
-	cfg.MaxConnLifetime = 30 * time.Minute
-	cfg.MaxConnIdleTime = 15 * time.Minute
-	cfg.HealthCheckPeriod = 20 * time.Second
-	cfg.LazyConnect = true
-
-	// customs
-	if o.Timezone != "" {
-		cfg.ConnConfig.RuntimeParams["timezone"] = o.Timezone
-	}
-	if o.MaxConns != 0 {
-		cfg.MaxConns = o.MaxConns
-	}
-	if o.MinConns != 0 {
-		cfg.MinConns = o.MinConns
-	}
-	if o.MaxConnLifetime != 0 {
-		cfg.MaxConnLifetime = o.MaxConnLifetime
-	}
-	if o.MaxConnIdleTime != 0 {
-		cfg.MaxConnIdleTime = o.MaxConnIdleTime
-	}
-	if o.HealthCheckPeriod != 0 {
-		cfg.HealthCheckPeriod = o.HealthCheckPeriod
-	}
-	if o.LazyConnect {
-		cfg.LazyConnect = o.LazyConnect
-	}
-
-	return cfg, nil
-}
-
-func (d *St) hErr(err error) error {
-	switch err {
-	case nil:
-		return nil
-	case pgx.ErrNoRows, sql.ErrNoRows:
-		err = db.ErrNoRows
-	default:
-		d.lg.Errorw(ErrPrefix, err)
-	}
-
-	return err
 }
 
 func (d *St) getCon(ctx context.Context) conSt {
@@ -160,7 +77,7 @@ func (d *St) getContextTransaction(ctx context.Context) pgx.Tx {
 func (d *St) ContextWithTransaction(ctx context.Context) (context.Context, error) {
 	tx, err := d.Con.Begin(ctx)
 	if err != nil {
-		return ctx, d.hErr(err)
+		return ctx, d.HErr(err)
 	}
 
 	return context.WithValue(ctx, TransactionCtxKey, &txContainerSt{tx: tx}), nil
@@ -178,7 +95,7 @@ func (d *St) CommitContextTransaction(ctx context.Context) error {
 			err != pgx.ErrTxCommitRollback {
 			_ = tx.Rollback(ctx)
 
-			return d.hErr(err)
+			return d.HErr(err)
 		}
 	}
 
@@ -210,14 +127,14 @@ func (d *St) RenewContextTransaction(ctx context.Context) error {
 				err != pgx.ErrTxCommitRollback {
 				_ = container.tx.Rollback(ctx)
 
-				return d.hErr(err)
+				return d.HErr(err)
 			}
 		}
 	}
 
 	container.tx, err = d.Con.Begin(ctx)
 	if err != nil {
-		return d.hErr(err)
+		return d.HErr(err)
 	}
 
 	return nil
@@ -225,16 +142,18 @@ func (d *St) RenewContextTransaction(ctx context.Context) error {
 
 // query
 
-func (d *St) DbExec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error) {
-	return d.getCon(ctx).Exec(ctx, sql, args...)
+func (d *St) DbExec(ctx context.Context, sql string, args ...interface{}) error {
+	_, err := d.getCon(ctx).Exec(ctx, sql, args...)
+	return d.HErr(err)
 }
 
-func (d *St) DbQuery(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
-	return d.getCon(ctx).Query(ctx, sql, args...)
+func (d *St) DbQuery(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+	rows, err := d.getCon(ctx).Query(ctx, sql, args...)
+	return rowsSt{Rows: rows, db: d}, d.HErr(err)
 }
 
-func (d *St) DbQueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
-	return d.getCon(ctx).QueryRow(ctx, sql, args...)
+func (d *St) DbQueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+	return rowSt{Row: d.getCon(ctx).QueryRow(ctx, sql, args...), db: d}
 }
 
 func (d *St) queryRebindNamed(sql string, argMap map[string]interface{}) (string, []interface{}) {
@@ -259,20 +178,48 @@ func (d *St) queryRebindNamed(sql string, argMap map[string]interface{}) (string
 	return resultQuery, args
 }
 
-func (d *St) DbExecM(ctx context.Context, sql string, argMap map[string]interface{}) (pgconn.CommandTag, error) {
+func (d *St) DbExecM(ctx context.Context, sql string, argMap map[string]interface{}) error {
 	rbSql, args := d.queryRebindNamed(sql, argMap)
-
-	return d.getCon(ctx).Exec(ctx, rbSql, args...)
+	_, err := d.getCon(ctx).Exec(ctx, rbSql, args...)
+	return d.HErr(err)
 }
 
-func (d *St) DbQueryM(ctx context.Context, sql string, argMap map[string]interface{}) (pgx.Rows, error) {
+func (d *St) DbQueryM(ctx context.Context, sql string, argMap map[string]interface{}) (Rows, error) {
 	rbSql, args := d.queryRebindNamed(sql, argMap)
-
-	return d.getCon(ctx).Query(ctx, rbSql, args...)
+	rows, err := d.getCon(ctx).Query(ctx, rbSql, args...)
+	return rowsSt{Rows: rows, db: d}, d.HErr(err)
 }
 
-func (d *St) DbQueryRowM(ctx context.Context, sql string, argMap map[string]interface{}) pgx.Row {
+func (d *St) DbQueryRowM(ctx context.Context, sql string, argMap map[string]interface{}) Row {
 	rbSql, args := d.queryRebindNamed(sql, argMap)
+	return rowSt{Row: d.getCon(ctx).QueryRow(ctx, rbSql, args...), db: d}
+}
 
-	return d.getCon(ctx).QueryRow(ctx, rbSql, args...)
+func (d *St) ValidateColNames(names []string, allowed map[string]bool) ([]string, error) {
+	for _, col := range names {
+		if !allowed[col] {
+			return nil, d.HErr(fmt.Errorf("%w: '%s'", db.ErrBadColumnName, col))
+		}
+	}
+
+	if len(names) == 0 {
+		for k := range allowed {
+			names = append(names, k)
+		}
+	}
+
+	return names, nil
+}
+
+func (d *St) HErr(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, pgx.ErrNoRows), errors.Is(err, sql.ErrNoRows):
+		err = db.ErrNoRows
+	default:
+		d.lg.Errorw(ErrPrefix, err)
+	}
+
+	return err
 }
