@@ -14,7 +14,7 @@ type St struct {
 	sl *zap.SugaredLogger
 }
 
-func New(level string, dev bool) *St {
+func New(level zapcore.Level, dev bool) *St {
 	var cfg zap.Config
 
 	if dev {
@@ -23,16 +23,16 @@ func New(level string, dev bool) *St {
 		cfg = zap.NewProductionConfig()
 
 		switch level {
-		case "error":
+		case LevelError:
 			cfg.Level.SetLevel(zap.ErrorLevel)
-		case "warn": // default
+		case LevelWarn: // default
 			cfg.Level.SetLevel(zap.WarnLevel)
-		case "info":
+		case LevelInfo:
 			cfg.Level.SetLevel(zap.InfoLevel)
-		case "debug":
+		case LevelDebug:
 			cfg.Level.SetLevel(zap.DebugLevel)
 		default:
-			cfg.Level.SetLevel(zap.WarnLevel)
+			cfg.Level.SetLevel(zap.InfoLevel)
 		}
 	}
 

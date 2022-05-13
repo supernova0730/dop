@@ -5,6 +5,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/rendau/dop/types"
 )
 
 type Full interface {
@@ -19,8 +20,16 @@ type Connection interface {
 	DbExecM(ctx context.Context, sql string, argMap map[string]interface{}) error
 	DbQueryM(ctx context.Context, sql string, argMap map[string]interface{}) (Rows, error)
 	DbQueryRowM(ctx context.Context, sql string, argMap map[string]interface{}) Row
-	ValidateColNames(names []string, allowed map[string]bool) ([]string, error)
 	HErr(err error) error
+}
+
+type ConnectionWithHelpers interface {
+	Connection
+
+	HfList(dst any, tables, conds []string, lPars types.ListParams, allowedCols map[string]string) error
+	HfGenerateColumns(rNames []string, allowed map[string]string) ([]string, []string)
+	HfGetCUFields(obj interface{}) map[string]interface{}
+	HfCreate(ctx context.Context, table string, obj interface{}, retCol string, retV interface{}) error
 }
 
 type ContextTransaction interface {
