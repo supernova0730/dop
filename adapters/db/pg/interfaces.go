@@ -14,22 +14,33 @@ type Full interface {
 }
 
 type Connection interface {
-	DbExec(ctx context.Context, sql string, args ...interface{}) error
-	DbQuery(ctx context.Context, sql string, args ...interface{}) (Rows, error)
-	DbQueryRow(ctx context.Context, sql string, args ...interface{}) Row
-	DbExecM(ctx context.Context, sql string, argMap map[string]interface{}) error
-	DbQueryM(ctx context.Context, sql string, argMap map[string]interface{}) (Rows, error)
-	DbQueryRowM(ctx context.Context, sql string, argMap map[string]interface{}) Row
+	DbExec(ctx context.Context, sql string, args ...any) error
+	DbQuery(ctx context.Context, sql string, args ...any) (Rows, error)
+	DbQueryRow(ctx context.Context, sql string, args ...any) Row
+	DbExecM(ctx context.Context, sql string, argMap map[string]any) error
+	DbQueryM(ctx context.Context, sql string, argMap map[string]any) (Rows, error)
+	DbQueryRowM(ctx context.Context, sql string, argMap map[string]any) Row
 	HErr(err error) error
 }
 
 type ConnectionWithHelpers interface {
 	Connection
 
-	HfList(dst any, tables, conds []string, lPars types.ListParams, allowedCols map[string]string) error
+	HfList(
+		ctx context.Context,
+		dst any,
+		tables, conds []string,
+		args map[string]any,
+		lPars types.ListParams,
+		allowedCols map[string]string,
+		allowedSorts map[string]string,
+		allowedSortNames map[string]string,
+	) (int64, error)
 	HfGenerateColumns(rNames []string, allowed map[string]string) ([]string, []string)
-	HfGetCUFields(obj interface{}) map[string]interface{}
-	HfCreate(ctx context.Context, table string, obj interface{}, retCol string, retV interface{}) error
+	HfGenerateSort(rNames []string, allowed map[string]string) []string
+	HfGet(ctx context.Context, dst any, tables, conds []string, args map[string]any, allowedCols map[string]string) error
+	HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error
+	HfGetCUFields(obj any) map[string]any
 }
 
 type ContextTransaction interface {
@@ -43,15 +54,15 @@ type Rows interface {
 	Close()
 	Err() error
 	Next() bool
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 type Row interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 type conSt interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }

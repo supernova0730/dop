@@ -223,18 +223,125 @@ func (d *St) HErr(err error) error {
 
 // helpers
 
-func (d *St) HfList(dst any, tables, conds []string, lPars types.ListParams, allowedCols map[string]string) error {
-	// v := reflect.Indirect(reflect.ValueOf(dst))
-	//
-	// fmt.Println(v.Type().Name(), v.Kind(), v.Elem().IsValid())
+func (d *St) HfList(
+	ctx context.Context,
+	dst any,
+	tables, conds []string,
+	args map[string]any,
+	lPars types.ListParams,
+	allowedCols map[string]string,
+	allowedSorts map[string]string,
+	allowedSortNames map[string]string,
+) (int64, error) {
+	var tCount int64
 
-	// colNames, colExps := d.HfGenerateColumns(lPars.Cols, allowedCols)
-	//
-	// query := `select ` + strings.Join(colExps, ",") +
-	// 	` from ` + strings.Join(tables, " ") +
-	// 	` where ` + strings.Join(conds, " and ")
+	if (lPars.WithTotalCount && lPars.PageSize > 0) || lPars.OnlyCount {
+		err := d.DbQueryRowM(ctx, `select count(*)`+
+			` from `+strings.Join(tables, " ")+
+			` where `+strings.Join(conds, " and "), args).Scan(&tCount)
+		if err != nil {
+			return 0, d.HErr(err)
+		}
 
-	return nil
+		if lPars.OnlyCount {
+			return tCount, nil
+		}
+	}
+
+	dstV := reflect.ValueOf(dst)
+
+	if dstV.Kind() != reflect.Pointer {
+		return 0, d.HErr(errors.New("dst must be pointer to slice"))
+	}
+
+	dstV = reflect.Indirect(dstV)
+
+	if dstV.Kind() != reflect.Slice {
+		return 0, d.HErr(errors.New("dst must be pointer to slice"))
+	}
+
+	elemType := dstV.Type().Elem()
+
+	if elemType.Kind() != reflect.Struct {
+		return 0, d.HErr(errors.New("dst element type must struct"))
+	}
+
+	if dstV.IsNil() {
+		dstV.Set(reflect.MakeSlice(reflect.SliceOf(elemType), 0, 10))
+	}
+
+	// generate columns
+	colNames, colExps := d.HfGenerateColumns(lPars.Cols, allowedCols)
+
+	scanItem := reflect.New(elemType).Elem()
+
+	elemTypeFields := reflect.VisibleFields(elemType)
+
+	scanFields := make([]any, len(colNames))
+
+	for cnI, cn := range colNames {
+		for _, field := range elemTypeFields {
+			if field.Anonymous || !field.IsExported() {
+				continue
+			}
+
+			fieldTag := field.Tag.Get(d.opts.FieldTag)
+			if fieldTag == "" || strings.SplitN(fieldTag, ",", 2)[0] != cn {
+				continue
+			}
+
+			scanFields[cnI] = scanItem.FieldByIndex(field.Index).Addr().Interface()
+
+			break
+		}
+	}
+
+	qOrderBy := ``
+
+	if len(lPars.Sort) > 0 {
+		if sortExprs := d.HfGenerateSort(lPars.Sort, allowedSorts); len(sortExprs) > 0 {
+			qOrderBy = ` order by ` + strings.Join(sortExprs, ", ")
+		}
+	} else if lPars.SortName != "" {
+		if sortExprs := allowedSortNames[lPars.SortName]; sortExprs != "" {
+			qOrderBy = ` order by ` + sortExprs
+		}
+	}
+
+	qOffset := ``
+	qLimit := ``
+
+	if lPars.PageSize > 0 {
+		qOffset = ` offset ` + strconv.FormatInt(lPars.Page*lPars.PageSize, 10)
+		qLimit = ` limit ` + strconv.FormatInt(lPars.PageSize, 10)
+	}
+
+	query := `select ` + strings.Join(colExps, ",") +
+		` from ` + strings.Join(tables, " ") +
+		` where ` + strings.Join(conds, " and ") +
+		qOrderBy +
+		qOffset +
+		qLimit
+
+	rows, err := d.DbQueryM(ctx, query, args)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(scanFields...)
+		if err != nil {
+			return 0, d.HErr(err)
+		}
+
+		dstV.Set(reflect.Append(dstV, scanItem))
+	}
+	if err = rows.Err(); err != nil {
+		return 0, d.HErr(err)
+	}
+
+	return tCount, nil
 }
 
 func (d *St) HfGenerateColumns(rNames []string, allowed map[string]string) ([]string, []string) {
@@ -259,6 +366,83 @@ func (d *St) HfGenerateColumns(rNames []string, allowed map[string]string) ([]st
 	}
 
 	return colNames, colExps
+}
+
+func (d *St) HfGenerateSort(rNames []string, allowed map[string]string) []string {
+	var expr string
+
+	if len(rNames) == 0 {
+		if expr = allowed["default"]; expr != "" {
+			return []string{expr}
+		}
+		return []string{}
+	}
+
+	res := make([]string, 0, len(allowed))
+
+	for _, sn := range rNames {
+		if expr = allowed[sn]; expr != "" {
+			res = append(res, expr)
+		}
+	}
+
+	return res
+}
+
+func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args map[string]any, allowedCols map[string]string) error {
+	dstV := reflect.ValueOf(dst)
+
+	if dstV.Kind() != reflect.Pointer {
+		return d.HErr(errors.New("dst must be pointer to slice"))
+	}
+
+	dstV = reflect.Indirect(dstV)
+
+	// temporary
+	if dstV.Kind() != reflect.Struct {
+		return d.HErr(errors.New("dst element type must struct"))
+	}
+
+	colNames := make([]string, 0, len(allowedCols))
+	colExps := make([]string, 0, len(allowedCols))
+
+	for cn, expr := range allowedCols {
+		colNames = append(colNames, cn)
+		colExps = append(colExps, expr)
+	}
+
+	elemTypeFields := reflect.VisibleFields(dstV.Type())
+
+	scanFields := make([]any, len(colNames))
+
+	for cnI, cn := range colNames {
+		for _, field := range elemTypeFields {
+			if field.Anonymous || !field.IsExported() {
+				continue
+			}
+
+			fieldTag := field.Tag.Get(d.opts.FieldTag)
+			if fieldTag == "" || strings.SplitN(fieldTag, ",", 2)[0] != cn {
+				continue
+			}
+
+			scanFields[cnI] = dstV.FieldByIndex(field.Index).Addr().Interface()
+
+			break
+		}
+	}
+
+	query := `select ` + strings.Join(colExps, ",") +
+		` from ` + strings.Join(tables, " ") +
+		` where ` + strings.Join(conds, " and ") +
+		` limit 1`
+
+	err := d.DbQueryRowM(ctx, query, args).Scan(scanFields...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *St) HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error {
@@ -317,7 +501,7 @@ func (d *St) HfGetCUFields(obj any) map[string]any {
 			continue
 		}
 
-		if strings.HasPrefix(vtField.Tag.Get(d.opts.IgnoreFlagFieldTag), "-") {
+		if vtField.Tag.Get(d.opts.IgnoreFlagFieldTag) == "-" {
 			continue
 		}
 

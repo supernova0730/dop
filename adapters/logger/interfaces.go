@@ -1,34 +1,34 @@
 package logger
 
 type Full interface {
-	Debug(args ...interface{})
-	Debugf(tmpl string, args ...interface{})
-	Debugw(msg string, args ...interface{})
+	Debug(args ...any)
+	Debugf(tmpl string, args ...any)
+	Debugw(msg string, args ...any)
 
-	Info(args ...interface{})
-	Infof(tmpl string, args ...interface{})
-	Infow(msg string, args ...interface{})
+	Info(args ...any)
+	Infof(tmpl string, args ...any)
+	Infow(msg string, args ...any)
 
-	Warn(args ...interface{})
-	Warnf(tmpl string, args ...interface{})
-	Warnw(msg string, args ...interface{})
+	Warn(args ...any)
+	Warnf(tmpl string, args ...any)
+	Warnw(msg string, args ...any)
 
-	Error(args ...interface{})
-	Errorf(tmpl string, args ...interface{})
-	Errorw(msg string, err interface{}, args ...interface{})
+	Error(args ...any)
+	Errorf(tmpl string, args ...any)
+	Errorw(msg string, err any, args ...any)
 
-	Fatal(args ...interface{})
-	Fatalf(tmpl string, args ...interface{})
-	Fatalw(msg string, err interface{}, args ...interface{})
+	Fatal(args ...any)
+	Fatalf(tmpl string, args ...any)
+	Fatalw(msg string, err any, args ...any)
 }
 
 type Lite interface {
-	Infow(msg string, args ...interface{})
-	Warnw(msg string, args ...interface{})
-	Errorw(msg string, err interface{}, args ...interface{})
+	Infow(msg string, args ...any)
+	Warnw(msg string, args ...any)
+	Errorw(msg string, err any, args ...any)
 }
 
 type WarnAndError interface {
-	Warnw(msg string, args ...interface{})
-	Errorw(msg string, err interface{}, args ...interface{})
+	Warnw(msg string, args ...any)
+	Errorw(msg string, err any, args ...any)
 }

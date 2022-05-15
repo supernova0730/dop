@@ -60,7 +60,7 @@ func (o rowsSt) Err() error {
 	return o.db.HErr(o.Rows.Err())
 }
 
-func (o rowsSt) Scan(dest ...interface{}) error {
+func (o rowsSt) Scan(dest ...any) error {
 	return o.db.HErr(o.Rows.Scan(dest...))
 }
 
@@ -69,6 +69,6 @@ type rowSt struct {
 	db Connection
 }
 
-func (o rowSt) Scan(dest ...interface{}) error {
+func (o rowSt) Scan(dest ...any) error {
 	return o.db.HErr(o.Row.Scan(dest...))
 }
