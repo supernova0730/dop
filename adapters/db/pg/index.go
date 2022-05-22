@@ -439,6 +439,9 @@ func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args ma
 
 	err := d.DbQueryRowM(ctx, query, args).Scan(scanFields...)
 	if err != nil {
+		// if nilOnNoRows && errors.Is(err, errs.NoRows) {
+		// 	return nil
+		// }
 		return err
 	}
 

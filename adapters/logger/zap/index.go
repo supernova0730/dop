@@ -2,6 +2,7 @@ package zap
 
 import (
 	"log"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -14,26 +15,14 @@ type St struct {
 	sl *zap.SugaredLogger
 }
 
-func New(level zapcore.Level, dev bool) *St {
+func New(level string, dev bool) *St {
 	var cfg zap.Config
 
 	if dev {
 		cfg = zap.NewDevelopmentConfig()
 	} else {
 		cfg = zap.NewProductionConfig()
-
-		switch level {
-		case LevelError:
-			cfg.Level.SetLevel(zap.ErrorLevel)
-		case LevelWarn: // default
-			cfg.Level.SetLevel(zap.WarnLevel)
-		case LevelInfo:
-			cfg.Level.SetLevel(zap.InfoLevel)
-		case LevelDebug:
-			cfg.Level.SetLevel(zap.DebugLevel)
-		default:
-			cfg.Level.SetLevel(zap.InfoLevel)
-		}
+		cfg.Level.SetLevel(getZapLevel(level))
 	}
 
 	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -46,6 +35,21 @@ func New(level zapcore.Level, dev bool) *St {
 	return &St{
 		l:  l,
 		sl: l.Sugar(),
+	}
+}
+
+func getZapLevel(v string) zapcore.Level {
+	switch strings.ToLower(v) {
+	case "error":
+		return zap.ErrorLevel
+	case "warn":
+		return zap.WarnLevel
+	case "info":
+		return zap.InfoLevel
+	case "debug":
+		return zap.DebugLevel
+	default:
+		return zap.InfoLevel
 	}
 }
 

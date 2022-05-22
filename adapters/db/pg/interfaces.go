@@ -9,6 +9,11 @@ import (
 )
 
 type Full interface {
+	ConnectionWithHelpers
+	ContextTransaction
+}
+
+type Min interface {
 	Connection
 	ContextTransaction
 }
