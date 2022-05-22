@@ -472,6 +472,30 @@ func (d *St) HfCreate(ctx context.Context, table string, obj any, retCol string,
 	}
 }
 
+func (d *St) HfUpdate(ctx context.Context, table string, obj any, conds []string, condArgs map[string]any) error {
+	fMap := d.HfGetCUFields(obj)
+
+	fields := make([]string, 0, len(fMap))
+
+	for k := range fMap {
+		fields = append(fields, k+`=${`+k+`}`)
+	}
+
+	query := `
+		update ` + table + `
+		set ` + strings.Join(fields, ",")
+
+	if len(conds) > 0 {
+		query += ` where ` + strings.Join(conds, " and ")
+
+		for k, v := range condArgs {
+			fMap[k] = v
+		}
+	}
+
+	return d.DbExecM(ctx, query, fMap)
+}
+
 func (d *St) HfGetCUFields(obj any) map[string]any {
 	v := reflect.Indirect(reflect.ValueOf(obj))
 	vt := v.Type()
@@ -509,4 +533,8 @@ func (d *St) HfGetCUFields(obj any) map[string]any {
 	}
 
 	return result
+}
+
+func (d *St) HfDelete(ctx context.Context, table string, conds []string, args map[string]any) error {
+	return d.DbExecM(ctx, `delete from `+table+` where `+strings.Join(conds, " and "), args)
 }

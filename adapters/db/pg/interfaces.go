@@ -40,7 +40,9 @@ type ConnectionWithHelpers interface {
 	HfGenerateSort(rNames []string, allowed map[string]string) []string
 	HfGet(ctx context.Context, dst any, tables, conds []string, args map[string]any, allowedCols map[string]string) error
 	HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error
+	HfUpdate(ctx context.Context, table string, obj any, conds []string, condArgs map[string]any) error
 	HfGetCUFields(obj any) map[string]any
+	HfDelete(ctx context.Context, table string, conds []string, args map[string]any) error
 }
 
 type ContextTransaction interface {
