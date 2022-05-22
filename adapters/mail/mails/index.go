@@ -1,7 +1,8 @@
-package ms
+package mails
 
 import (
 	"github.com/rendau/dop/adapters/client/httpc"
+	"github.com/rendau/dop/adapters/mail"
 )
 
 type St struct {
@@ -14,12 +15,8 @@ func New(httpc httpc.HttpC) *St {
 	}
 }
 
-func (s *St) Send(phone string, msg string) bool {
-	_, err := s.httpc.SendJson(SendReqSt{
-		To:   phone,
-		Text: msg,
-		Sync: true,
-	}, httpc.OptionsSt{
+func (m *St) Send(data *mail.SendReqSt) bool {
+	_, err := m.httpc.SendJson(data, httpc.OptionsSt{
 		Method: "POST",
 		Path:   "send",
 	})

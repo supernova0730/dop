@@ -1,4 +1,4 @@
-package ms
+package smss
 
 type SendReqSt struct {
 	To   string `json:"to"`
