@@ -15,4 +15,5 @@ const (
 	PermissionDenied  = Err("permission_denied")
 	ObjectNotFound    = Err("object_not_found")
 	IncorrectPageSize = Err("incorrect_page_size")
+	BadStatusCode     = Err("bad_status_code")
 )
