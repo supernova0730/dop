@@ -39,7 +39,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	uri := opts.BaseUrl + opts.Path
 
 	if opts.LogFlags&httpc.LogRequest > 0 {
-		c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+" request: /"+opts.Path,
+		c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"request: /"+opts.Path,
 			"uri", uri,
 			"body", string(reqBody),
 		)
@@ -47,7 +47,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 
 	req, err := http.NewRequest(opts.Method, uri, bytes.NewBuffer(reqBody))
 	if err != nil {
-		c.lg.Errorw("Fail to create http-request", err)
+		c.lg.Errorw(opts.BaseLogPrefix+opts.LogPrefix+"Fail to create http-request", err)
 		return nil, err
 	}
 
@@ -93,7 +93,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	rep, err := opts.Client.Do(req)
 	if err != nil {
 		c.lg.Errorw(
-			"Fail to send http-request", err,
+			opts.BaseLogPrefix+opts.LogPrefix+"Fail to send http-request", err,
 			"uri", uri,
 			"params", queryParamsString,
 			"req_body", string(reqBody),
@@ -106,7 +106,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	repBody, err := ioutil.ReadAll(rep.Body)
 	if err != nil {
 		c.lg.Errorw(
-			"Fail to read body", err,
+			opts.BaseLogPrefix+opts.LogPrefix+"Fail to read body", err,
 			"uri", uri,
 			"params", queryParamsString,
 			"req_body", string(reqBody),
@@ -119,7 +119,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 			return nil, errs.NotAuthorized
 		}
 		c.lg.Errorw(
-			"Bad status code", nil,
+			opts.BaseLogPrefix+opts.LogPrefix+"Bad status code", nil,
 			"status_code", rep.StatusCode,
 			"rep_body", string(repBody),
 			"uri", uri,
@@ -130,7 +130,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 
 	if len(repBody) > 0 {
 		if opts.LogFlags&httpc.LogResponse > 0 {
-			c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+" response: /"+opts.Path,
+			c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"response: /"+opts.Path,
 				"uri", uri,
 				"body", string(repBody),
 			)
@@ -149,7 +149,7 @@ func (c *St) SendJson(reqObj interface{}, opts httpc.OptionsSt) ([]byte, error) 
 
 	reqBody, err := json.Marshal(reqObj)
 	if err != nil {
-		c.lg.Errorw("Fail to marshal json", err)
+		c.lg.Errorw(opts.LogPrefix+"Fail to marshal json", err)
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func (c *St) SendRecvJson(reqBody []byte, repObj interface{}, opts httpc.Options
 			err = json.Unmarshal(repBody, repObj)
 			if err != nil {
 				c.lg.Errorw(
-					"Fail to unmarshal body", err,
+					opts.LogPrefix+"Fail to unmarshal body", err,
 					"opts", opts,
 					"req_body", string(reqBody),
 				)
@@ -199,7 +199,7 @@ func (c *St) SendJsonRecvJson(reqObj, repObj interface{}, opts httpc.OptionsSt) 
 
 	reqBody, err := json.Marshal(reqObj)
 	if err != nil {
-		c.lg.Errorw("Fail to marshal json", err)
+		c.lg.Errorw(opts.LogPrefix+"Fail to marshal json", err)
 		return nil, err
 	}
 
