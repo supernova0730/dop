@@ -484,6 +484,10 @@ func (d *St) HfUpdate(ctx context.Context, table string, obj any, conds []string
 		fields = append(fields, k+`=${`+k+`}`)
 	}
 
+	if len(fields) == 0 {
+		return nil
+	}
+
 	query := `
 		update ` + table + `
 		set ` + strings.Join(fields, ",")
