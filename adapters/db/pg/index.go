@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/jackc/pgx/v4/stdlib" // driver
+	"github.com/rendau/dop/adapters/db"
 	"github.com/rendau/dop/adapters/logger"
 	"github.com/rendau/dop/errs"
 	"github.com/rendau/dop/types"
@@ -55,7 +56,7 @@ func New(debug bool, lg logger.WarnAndError, opts OptionsSt) (*St, error) {
 	}, nil
 }
 
-func (d *St) getCon(ctx context.Context) conSt {
+func (d *St) getCon(ctx context.Context) db.RDBConSt {
 	if tx := d.getContextTransaction(ctx); tx != nil {
 		return tx
 	}
@@ -160,12 +161,12 @@ func (d *St) DbExec(ctx context.Context, sql string, args ...any) error {
 	return d.HErr(err)
 }
 
-func (d *St) DbQuery(ctx context.Context, sql string, args ...any) (Rows, error) {
+func (d *St) DbQuery(ctx context.Context, sql string, args ...any) (db.RDBRows, error) {
 	rows, err := d.getCon(ctx).Query(ctx, sql, args...)
 	return rowsSt{Rows: rows, db: d}, d.HErr(err)
 }
 
-func (d *St) DbQueryRow(ctx context.Context, sql string, args ...any) Row {
+func (d *St) DbQueryRow(ctx context.Context, sql string, args ...any) db.RDBRow {
 	return rowSt{Row: d.getCon(ctx).QueryRow(ctx, sql, args...), db: d}
 }
 
@@ -197,13 +198,13 @@ func (d *St) DbExecM(ctx context.Context, sql string, argMap map[string]any) err
 	return d.HErr(err)
 }
 
-func (d *St) DbQueryM(ctx context.Context, sql string, argMap map[string]any) (Rows, error) {
+func (d *St) DbQueryM(ctx context.Context, sql string, argMap map[string]any) (db.RDBRows, error) {
 	rbSql, args := d.queryRebindNamed(sql, argMap)
 	rows, err := d.getCon(ctx).Query(ctx, rbSql, args...)
 	return rowsSt{Rows: rows, db: d}, d.HErr(err)
 }
 
-func (d *St) DbQueryRowM(ctx context.Context, sql string, argMap map[string]any) Row {
+func (d *St) DbQueryRowM(ctx context.Context, sql string, argMap map[string]any) db.RDBRow {
 	rbSql, args := d.queryRebindNamed(sql, argMap)
 	return rowSt{Row: d.getCon(ctx).QueryRow(ctx, rbSql, args...), db: d}
 }
@@ -298,13 +299,13 @@ func (d *St) HfList(
 
 	qOrderBy := ``
 
-	if len(lPars.Sort) > 0 {
-		if sortExprs := d.HfGenerateSort(lPars.Sort, allowedSorts); len(sortExprs) > 0 {
-			qOrderBy = ` order by ` + strings.Join(sortExprs, ", ")
-		}
-	} else if lPars.SortName != "" {
+	if lPars.SortName != "" {
 		if sortExprs := allowedSortNames[lPars.SortName]; sortExprs != "" {
 			qOrderBy = ` order by ` + sortExprs
+		}
+	} else {
+		if sortExprs := d.HfGenerateSort(lPars.Sort, allowedSorts); len(sortExprs) > 0 {
+			qOrderBy = ` order by ` + strings.Join(sortExprs, ", ")
 		}
 	}
 
@@ -316,12 +317,20 @@ func (d *St) HfList(
 		qLimit = ` limit ` + strconv.FormatInt(lPars.PageSize, 10)
 	}
 
+	qWhere := ``
+
+	if len(conds) > 0 {
+		qWhere = ` where ` + strings.Join(conds, " and ")
+	}
+
 	query := `select ` + strings.Join(colExps, ",") +
 		` from ` + strings.Join(tables, " ") +
-		` where ` + strings.Join(conds, " and ") +
+		qWhere +
 		qOrderBy +
 		qOffset +
 		qLimit
+
+	// fmt.Println(query)
 
 	rows, err := d.DbQueryM(ctx, query, args)
 	if err != nil {
@@ -432,9 +441,15 @@ func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args ma
 		}
 	}
 
+	qWhere := ``
+
+	if len(conds) > 0 {
+		qWhere = ` where ` + strings.Join(conds, " and ")
+	}
+
 	query := `select ` + strings.Join(colExps, ",") +
 		` from ` + strings.Join(tables, " ") +
-		` where ` + strings.Join(conds, " and ") +
+		qWhere +
 		` limit 1`
 
 	err := d.DbQueryRowM(ctx, query, args).Scan(scanFields...)

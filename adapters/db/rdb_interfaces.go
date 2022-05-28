@@ -1,4 +1,4 @@
-package pg
+package db
 
 import (
 	"context"
@@ -8,28 +8,28 @@ import (
 	"github.com/rendau/dop/types"
 )
 
-type Full interface {
-	ConnectionWithHelpers
-	ContextTransaction
+type RDBFull interface {
+	RDBConnectionWithHelpers
+	RDBContextTransaction
 }
 
-type Min interface {
-	Connection
-	ContextTransaction
+type RDBMin interface {
+	RDBConnection
+	RDBContextTransaction
 }
 
-type Connection interface {
+type RDBConnection interface {
 	DbExec(ctx context.Context, sql string, args ...any) error
-	DbQuery(ctx context.Context, sql string, args ...any) (Rows, error)
-	DbQueryRow(ctx context.Context, sql string, args ...any) Row
+	DbQuery(ctx context.Context, sql string, args ...any) (RDBRows, error)
+	DbQueryRow(ctx context.Context, sql string, args ...any) RDBRow
 	DbExecM(ctx context.Context, sql string, argMap map[string]any) error
-	DbQueryM(ctx context.Context, sql string, argMap map[string]any) (Rows, error)
-	DbQueryRowM(ctx context.Context, sql string, argMap map[string]any) Row
+	DbQueryM(ctx context.Context, sql string, argMap map[string]any) (RDBRows, error)
+	DbQueryRowM(ctx context.Context, sql string, argMap map[string]any) RDBRow
 	HErr(err error) error
 }
 
-type ConnectionWithHelpers interface {
-	Connection
+type RDBConnectionWithHelpers interface {
+	RDBConnection
 
 	HfList(
 		ctx context.Context,
@@ -50,25 +50,25 @@ type ConnectionWithHelpers interface {
 	HfDelete(ctx context.Context, table string, conds []string, args map[string]any) error
 }
 
-type ContextTransaction interface {
+type RDBContextTransaction interface {
 	ContextWithTransaction(ctx context.Context) (context.Context, error)
 	CommitContextTransaction(ctx context.Context) error
 	RollbackContextTransaction(ctx context.Context)
 	RenewContextTransaction(ctx context.Context) error
 }
 
-type Rows interface {
+type RDBRows interface {
 	Close()
 	Err() error
 	Next() bool
 	Scan(dest ...any) error
 }
 
-type Row interface {
+type RDBRow interface {
 	Scan(dest ...any) error
 }
 
-type conSt interface {
+type RDBConSt interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row

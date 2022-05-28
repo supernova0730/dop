@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/rendau/dop/adapters/db"
 )
 
 // Options
@@ -53,7 +54,7 @@ type txContainerSt struct {
 
 type rowsSt struct {
 	pgx.Rows
-	db Connection
+	db db.RDBConnection
 }
 
 func (o rowsSt) Err() error {
@@ -66,7 +67,7 @@ func (o rowsSt) Scan(dest ...any) error {
 
 type rowSt struct {
 	pgx.Row
-	db Connection
+	db db.RDBConnection
 }
 
 func (o rowSt) Scan(dest ...any) error {
