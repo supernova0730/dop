@@ -16,8 +16,9 @@ type ListParams struct {
 }
 
 type PaginatedListRep struct {
-	Page       int64       `json:"page"`
-	PageSize   int64       `json:"page_size"`
-	TotalCount int64       `json:"total_count"`
-	Results    interface{} `json:"results"`
+	Page       int64 `json:"page"`
+	PageSize   int64 `json:"page_size"`
+	TotalCount int64 `json:"total_count"`
+
+	// Results    interface{} `json:"results"`
 }
