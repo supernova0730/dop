@@ -1,4 +1,4 @@
-package tools
+package dopTools
 
 import (
 	"os"
@@ -7,8 +7,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/rendau/dop/errs"
-	"github.com/rendau/dop/types"
+	"github.com/rendau/dop/dopErrs"
+	"github.com/rendau/dop/dopTypes"
 )
 
 var (
@@ -18,13 +18,13 @@ var (
 	defaultMaxPageSize int64 = 100
 )
 
-func RequirePageSize(pars types.ListParams, maxPageSize int64) error {
+func RequirePageSize(pars dopTypes.ListParams, maxPageSize int64) error {
 	if maxPageSize == 0 {
 		maxPageSize = defaultMaxPageSize
 	}
 
 	if pars.PageSize == 0 || pars.PageSize > maxPageSize {
-		return errs.IncorrectPageSize
+		return dopErrs.IncorrectPageSize
 	}
 
 	return nil

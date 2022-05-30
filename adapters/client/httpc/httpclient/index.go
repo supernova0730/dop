@@ -10,7 +10,6 @@ import (
 
 	"github.com/rendau/dop/adapters/client/httpc"
 	"github.com/rendau/dop/adapters/logger"
-	"github.com/rendau/dop/errs"
 )
 
 type St struct {

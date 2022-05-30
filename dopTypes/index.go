@@ -1,4 +1,4 @@
-package types
+package dopTypes
 
 type ErrRep struct {
 	// Код ошибки

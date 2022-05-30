@@ -1,4 +1,4 @@
-package errs
+package dopErrs
 
 type Err string
 

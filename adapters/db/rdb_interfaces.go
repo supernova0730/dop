@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
-	"github.com/rendau/dop/types"
+	"github.com/rendau/dop/dopTypes"
 )
 
 type RDBFull interface {
@@ -36,7 +36,7 @@ type RDBConnectionWithHelpers interface {
 		dst any,
 		tables, conds []string,
 		args map[string]any,
-		lPars types.ListParams,
+		lPars dopTypes.ListParams,
 		allowedCols map[string]string,
 		allowedSorts map[string]string,
 		allowedSortNames map[string]string,

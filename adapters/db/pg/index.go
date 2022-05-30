@@ -13,8 +13,8 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib" // driver
 	"github.com/rendau/dop/adapters/db"
 	"github.com/rendau/dop/adapters/logger"
-	"github.com/rendau/dop/errs"
-	"github.com/rendau/dop/types"
+	"github.com/rendau/dop/dopErrs"
+	"github.com/rendau/dop/dopTypes"
 )
 
 type St struct {
@@ -214,7 +214,7 @@ func (d *St) HErr(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, pgx.ErrNoRows), errors.Is(err, sql.ErrNoRows):
-		err = errs.NoRows
+		err = dopErrs.NoRows
 	default:
 		d.lg.Errorw(ErrPrefix, err)
 	}
@@ -229,7 +229,7 @@ func (d *St) HfList(
 	dst any,
 	tables, conds []string,
 	args map[string]any,
-	lPars types.ListParams,
+	lPars dopTypes.ListParams,
 	allowedCols map[string]string,
 	allowedSorts map[string]string,
 	allowedSortNames map[string]string,
