@@ -154,6 +154,26 @@ func (d *St) RenewContextTransaction(ctx context.Context) error {
 	return nil
 }
 
+func (d *St) TransactionFn(ctx context.Context, f func(context.Context) error) error {
+	var err error
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if ctx, err = d.ContextWithTransaction(ctx); err != nil {
+		return err
+	}
+	defer func() { d.RollbackContextTransaction(ctx) }()
+
+	err = f(ctx)
+	if err != nil {
+		return err
+	}
+
+	return d.CommitContextTransaction(ctx)
+}
+
 // query
 
 func (d *St) DbExec(ctx context.Context, sql string, args ...any) error {

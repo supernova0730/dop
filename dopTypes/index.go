@@ -1,18 +1,18 @@
 package dopTypes
 
 type ErrRep struct {
-	// Код ошибки
 	ErrorCode string `json:"error_code"`
+	Desc      string `json:"desc,omitempty"`
 }
 
 type ListParams struct {
-	Cols           []string `json:"cols"`
-	Page           int64    `json:"page"`
-	PageSize       int64    `json:"page_size"`
-	WithTotalCount bool     `json:"with_total_count"`
-	OnlyCount      bool     `json:"only_count"`
-	SortName       string   `json:"sort_name"`
-	Sort           []string `json:"sort"`
+	Cols           []string `json:"cols" form:"cols"`
+	Page           int64    `json:"page" form:"page"`
+	PageSize       int64    `json:"page_size" form:"page_size"`
+	WithTotalCount bool     `json:"with_total_count" form:"with_total_count"`
+	OnlyCount      bool     `json:"only_count" form:"only_count"`
+	SortName       string   `json:"sort_name" form:"sort_name"`
+	Sort           []string `json:"sort" form:"sort"`
 }
 
 type PaginatedListRep struct {
