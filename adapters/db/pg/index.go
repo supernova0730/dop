@@ -256,10 +256,16 @@ func (d *St) HfList(
 ) (int64, error) {
 	var tCount int64
 
+	qWhere := ``
+
+	if len(conds) > 0 {
+		qWhere = ` where ` + strings.Join(conds, " and ")
+	}
+
 	if (lPars.WithTotalCount && lPars.PageSize > 0) || lPars.OnlyCount {
 		err := d.DbQueryRowM(ctx, `select count(*)`+
 			` from `+strings.Join(tables, " ")+
-			` where `+strings.Join(conds, " and "), args).Scan(&tCount)
+			qWhere, args).Scan(&tCount)
 		if err != nil {
 			return 0, d.HErr(err)
 		}
@@ -335,12 +341,6 @@ func (d *St) HfList(
 	if lPars.PageSize > 0 {
 		qOffset = ` offset ` + strconv.FormatInt(lPars.Page*lPars.PageSize, 10)
 		qLimit = ` limit ` + strconv.FormatInt(lPars.PageSize, 10)
-	}
-
-	qWhere := ``
-
-	if len(conds) > 0 {
-		qWhere = ` where ` + strings.Join(conds, " and ")
 	}
 
 	query := `select ` + strings.Join(colExps, ",") +
@@ -578,5 +578,11 @@ func (d *St) HfGetCUFields(obj any) map[string]any {
 }
 
 func (d *St) HfDelete(ctx context.Context, table string, conds []string, args map[string]any) error {
-	return d.DbExecM(ctx, `delete from `+table+` where `+strings.Join(conds, " and "), args)
+	qWhere := ``
+
+	if len(conds) > 0 {
+		qWhere = ` where ` + strings.Join(conds, " and ")
+	}
+
+	return d.DbExecM(ctx, `delete from `+table+qWhere, args)
 }
