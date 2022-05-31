@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -80,6 +81,20 @@ func Error(c *gin.Context, err error) bool {
 		return true
 	}
 	return false
+}
+
+func GetAuthToken(c *gin.Context) string {
+	token := c.GetHeader("Authorization")
+
+	if token == "" { // try from query parameter
+		token = c.Query("auth_token")
+	} else {
+		if strings.HasPrefix(token, "Bearer ") {
+			token = token[7:]
+		}
+	}
+
+	return token
 }
 
 func BindJSON(c *gin.Context, obj any) bool {
