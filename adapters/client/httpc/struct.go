@@ -2,22 +2,26 @@ package httpc
 
 import (
 	"net/http"
+	"net/url"
+	"time"
 )
 
 type OptionsSt struct {
 	Client         *http.Client
 	BaseUrl        string
-	BaseParams     map[string]string
-	BaseHeaders    map[string]string
+	BaseParams     url.Values
+	BaseHeaders    http.Header
 	BaseLogPrefix  string
 	BasicAuthCreds *BasicAuthCredsSt
 
-	Method    string
-	Path      string
-	Params    map[string]string
-	Headers   map[string]string
-	LogFlags  int
-	LogPrefix string
+	Method        string
+	Path          string
+	Params        url.Values
+	Headers       http.Header
+	LogFlags      int
+	LogPrefix     string
+	RetryCount    int
+	RetryInterval time.Duration
 }
 
 type BasicAuthCredsSt struct {
@@ -39,6 +43,7 @@ func (o OptionsSt) GetMergedWith(v OptionsSt) OptionsSt {
 		Headers:        o.Headers,
 		LogFlags:       o.LogFlags,
 		LogPrefix:      o.LogPrefix,
+		RetryCount:     o.RetryCount,
 	}
 
 	if v.Client != nil {
@@ -99,6 +104,20 @@ func (o OptionsSt) GetMergedWith(v OptionsSt) OptionsSt {
 			res.LogPrefix = ""
 		} else {
 			res.LogPrefix = v.LogPrefix
+		}
+	}
+	if v.RetryCount != 0 {
+		if v.RetryCount < 0 {
+			res.RetryCount = 0
+		} else {
+			res.RetryCount = v.RetryCount
+		}
+	}
+	if v.RetryInterval != 0 {
+		if v.RetryInterval < 0 {
+			res.RetryInterval = 0
+		} else {
+			res.RetryInterval = v.RetryInterval
 		}
 	}
 

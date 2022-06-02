@@ -6,10 +6,11 @@ import (
 
 	"github.com/rendau/dop/adapters/client/httpc"
 	"github.com/rendau/dop/adapters/logger"
+	"github.com/rendau/dop/dopErrs"
 )
 
 const (
-	ErrPageNotFound = errs.Err("page_not_found")
+	ErrPageNotFound = dopErrs.Err("page_not_found")
 )
 
 type St struct {
