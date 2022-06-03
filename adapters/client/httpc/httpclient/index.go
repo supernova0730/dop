@@ -39,6 +39,9 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 
 	origLogFlags := opts.LogFlags
 
+	var err error
+	var repBody []byte
+
 	for i := opts.RetryCount; i >= 0; i-- {
 		if i == 0 {
 			opts.LogFlags = origLogFlags
@@ -46,7 +49,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 			opts.LogFlags = origLogFlags | httpc.NoLogError
 		}
 
-		repBody, err := c.send(reqBody, opts)
+		repBody, err = c.send(reqBody, opts)
 		if err != nil {
 			if opts.RetryInterval > 0 {
 				time.Sleep(opts.RetryInterval)
@@ -57,7 +60,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 		return repBody, nil
 	}
 
-	return nil, nil
+	return nil, err
 }
 
 func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
@@ -86,9 +89,13 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 			req.Header = opts.BaseHeaders
 		}
 		if len(opts.Headers) > 0 {
-			req.Header = opts.Headers
+			for k, v := range opts.Headers {
+				req.Header[k] = v
+			}
 		}
 	}
+
+	// c.lg.Infow("dop request header", req.Header)
 
 	var queryParamsString string
 
