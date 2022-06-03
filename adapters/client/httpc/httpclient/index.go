@@ -105,7 +105,9 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	if len(opts.BaseParams) > 0 || len(opts.Params) > 0 {
 		qPars := url.Values{}
 		if len(opts.BaseParams) > 0 {
-			qPars = opts.BaseParams
+			for k, v := range opts.BaseParams {
+				qPars[k] = v
+			}
 		}
 		if len(opts.Params) > 0 {
 			for k, v := range opts.Params {

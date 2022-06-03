@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"encoding/json"
+	"net/http"
 	"sync"
 
 	"github.com/rendau/dop/adapters/client/httpc"
@@ -92,10 +93,10 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 
 func (c *St) SendJson(reqObj interface{}, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
-		opts.Headers = map[string]string{}
+		opts.Headers = http.Header{}
 	}
 
-	opts.Headers["Content-Type"] = "application/json"
+	opts.Headers["Content-Type"] = []string{"application/json"}
 
 	reqBody, err := json.Marshal(reqObj)
 	if err != nil {
@@ -112,10 +113,10 @@ func (c *St) SendJson(reqObj interface{}, opts httpc.OptionsSt) ([]byte, error) 
 
 func (c *St) SendRecvJson(reqBody []byte, repObj interface{}, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
-		opts.Headers = map[string]string{}
+		opts.Headers = http.Header{}
 	}
 
-	opts.Headers["Accept"] = "application/json"
+	opts.Headers["Accept"] = []string{"application/json"}
 
 	repBody, err := c.Send(reqBody, opts)
 	if err != nil {
@@ -136,10 +137,10 @@ func (c *St) SendRecvJson(reqBody []byte, repObj interface{}, opts httpc.Options
 
 func (c *St) SendJsonRecvJson(reqObj, repObj interface{}, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
-		opts.Headers = map[string]string{}
+		opts.Headers = http.Header{}
 	}
 
-	opts.Headers["Content-Type"] = "application/json"
+	opts.Headers["Content-Type"] = []string{"application/json"}
 
 	reqBody, err := json.Marshal(reqObj)
 	if err != nil {
