@@ -3,12 +3,14 @@ package dopTools
 import (
 	"os"
 	"os/signal"
+	"reflect"
 	"regexp"
 	"strings"
 	"syscall"
 
 	"github.com/rendau/dop/dopErrs"
 	"github.com/rendau/dop/dopTypes"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -130,4 +132,27 @@ func StopSignal() <-chan os.Signal {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	return ch
+}
+
+func SetViperDefaultsFromObj(obj any) {
+	v := reflect.Indirect(reflect.ValueOf(obj))
+	fields := reflect.VisibleFields(v.Type())
+
+	var fieldTag string
+	var tagName string
+
+	for _, field := range fields {
+		if field.Anonymous || !field.IsExported() {
+			continue
+		}
+
+		fieldTag = field.Tag.Get("mapstructure")
+		if fieldTag == "" {
+			continue
+		}
+
+		tagName = strings.SplitN(fieldTag, ",", 2)[0]
+
+		viper.SetDefault(tagName, "false")
+	}
 }
