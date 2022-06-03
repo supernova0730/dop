@@ -153,6 +153,6 @@ func SetViperDefaultsFromObj(obj any) {
 
 		tagName = strings.SplitN(fieldTag, ",", 2)[0]
 
-		viper.SetDefault(tagName, "false")
+		viper.SetDefault(tagName, "")
 	}
 }
