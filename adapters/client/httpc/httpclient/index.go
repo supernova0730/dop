@@ -86,7 +86,9 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	// Headers
 	if len(opts.BaseHeaders) > 0 || len(opts.Headers) > 0 {
 		if len(opts.BaseHeaders) > 0 {
-			req.Header = opts.BaseHeaders
+			for k, v := range opts.BaseHeaders {
+				req.Header[k] = v
+			}
 		}
 		if len(opts.Headers) > 0 {
 			for k, v := range opts.Headers {
