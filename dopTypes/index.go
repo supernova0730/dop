@@ -1,8 +1,9 @@
 package dopTypes
 
 type ErrRep struct {
-	ErrorCode string `json:"error_code"`
-	Desc      string `json:"desc,omitempty"`
+	ErrorCode string            `json:"error_code"`
+	Desc      string            `json:"desc,omitempty"`
+	Fields    map[string]string `json:"fields,omitempty"`
 }
 
 type ListParams struct {

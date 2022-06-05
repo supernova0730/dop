@@ -1,21 +1,24 @@
 package dopTools
 
 import (
+	"net/mail"
 	"os"
 	"os/signal"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/rendau/dop/dopErrs"
 	"github.com/rendau/dop/dopTypes"
 	"github.com/spf13/viper"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 var (
 	phoneRegexp = regexp.MustCompile(`^[1-9][0-9]{10,30}$`)
-	emailRegexp = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,10}$`)
 
 	defaultMaxPageSize int64 = 100
 )
@@ -53,7 +56,46 @@ func ValidatePhone(v string) bool {
 }
 
 func ValidateEmail(v string) bool {
-	return emailRegexp.MatchString(v)
+	_, err := mail.ParseAddress(v)
+	return err == nil
+}
+
+func ValidateIin(v string) bool {
+	var err error
+
+	if len(v) != 12 {
+		return false
+	}
+
+	vIntArr := [12]int{}
+	for i, x := range v {
+		vIntArr[i], err = strconv.Atoi(string(x))
+		if err != nil {
+			return false
+		}
+	}
+
+	b1 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+	b2 := []int{3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2}
+	cs := 0
+
+	for i := 0; i < 11; i++ {
+		cs += vIntArr[i] * b1[i]
+	}
+
+	cs = cs % 11
+
+	if cs == 10 {
+		cs = 0
+
+		for i := 0; i < 11; i++ {
+			cs += vIntArr[i] * b2[i]
+		}
+
+		cs = cs % 11
+	}
+
+	return cs == vIntArr[11]
 }
 
 func Coalesce[T any](v *T, nv T) T {
@@ -66,6 +108,11 @@ func Coalesce[T any](v *T, nv T) T {
 
 func NewPtr[T any](v T) *T {
 	return &v
+}
+
+func FmtFloat(v float64, dec int) string {
+	p := message.NewPrinter(language.Russian)
+	return p.Sprintf("%."+strconv.Itoa(dec)+"f", v)
 }
 
 func NewSlicePtr[T any](v ...T) *[]T {

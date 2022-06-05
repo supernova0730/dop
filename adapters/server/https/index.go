@@ -165,6 +165,17 @@ func MwRecovery(lg logger.WarnAndError, handler func(*gin.Context, error)) gin.H
 					ErrorCode: cErr.Err.Error(),
 					Desc:      cErr.Desc,
 				})
+			case dopErrs.FormErr:
+				fields := map[string]string{}
+
+				for k, v := range cErr.Fields {
+					fields[k] = v.Error()
+				}
+
+				c.AbortWithStatusJSON(http.StatusBadRequest, dopTypes.ErrRep{
+					ErrorCode: dopErrs.FormValidate.Error(),
+					Fields:    fields,
+				})
 			default:
 				lg.Errorw(
 					"Error in httpc handler",
