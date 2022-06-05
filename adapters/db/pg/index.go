@@ -306,6 +306,10 @@ func (d *St) HfList(
 
 	scanFields := make([]any, len(colNames))
 
+	scanSliceFields := make([]reflect.Value, 0, len(colNames))
+
+	var fld reflect.Value
+
 	for cnI, cn := range colNames {
 		for _, field := range elemTypeFields {
 			if field.Anonymous || !field.IsExported() {
@@ -317,7 +321,13 @@ func (d *St) HfList(
 				continue
 			}
 
-			scanFields[cnI] = scanItem.FieldByIndex(field.Index).Addr().Interface()
+			fld = scanItem.FieldByIndex(field.Index)
+
+			scanFields[cnI] = fld.Addr().Interface()
+
+			if field.Type.Kind() == reflect.Slice {
+				scanSliceFields = append(scanSliceFields, fld)
+			}
 
 			break
 		}
@@ -365,6 +375,10 @@ func (d *St) HfList(
 		}
 
 		dstV.Set(reflect.Append(dstV, scanItem))
+
+		for _, fld = range scanSliceFields {
+			fld.Set(reflect.Zero(fld.Type()))
+		}
 	}
 	if err = rows.Err(); err != nil {
 		return 0, d.HErr(err)
