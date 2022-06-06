@@ -101,7 +101,7 @@ func TestDop(t *testing.T) {
 
 	result := make([]*T1St, 0, 10)
 
-	_, err = db.HfList1(
+	_, err = db.HfList(
 		ctx,
 		&result,
 		[]string{`t1`},
