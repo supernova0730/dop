@@ -306,7 +306,7 @@ func (d *St) HfList(
 
 	scanFields := make([]any, len(colNames))
 
-	scanSliceFields := make([]reflect.Value, 0, len(colNames))
+	scanPtrFields := make([]reflect.Value, 0, len(colNames))
 
 	var fld reflect.Value
 
@@ -325,8 +325,9 @@ func (d *St) HfList(
 
 			scanFields[cnI] = fld.Addr().Interface()
 
-			if field.Type.Kind() == reflect.Slice {
-				scanSliceFields = append(scanSliceFields, fld)
+			switch field.Type.Kind() {
+			case reflect.Slice, reflect.Pointer, reflect.Map:
+				scanPtrFields = append(scanPtrFields, fld)
 			}
 
 			break
@@ -376,8 +377,170 @@ func (d *St) HfList(
 
 		dstV.Set(reflect.Append(dstV, scanItem))
 
-		for _, fld = range scanSliceFields {
+		for _, fld = range scanPtrFields {
 			fld.Set(reflect.Zero(fld.Type()))
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return 0, d.HErr(err)
+	}
+
+	return tCount, nil
+}
+
+func (d *St) HfList1(
+	ctx context.Context,
+	dst any,
+	tables, conds []string,
+	args map[string]any,
+	lPars dopTypes.ListParams,
+	allowedCols map[string]string,
+	allowedSorts map[string]string,
+	allowedSortNames map[string]string,
+) (int64, error) {
+	var tCount int64
+
+	qWhere := ``
+
+	if len(conds) > 0 {
+		qWhere = ` where ` + strings.Join(conds, " and ")
+	}
+
+	if (lPars.WithTotalCount && lPars.PageSize > 0) || lPars.OnlyCount {
+		err := d.DbQueryRowM(ctx, `select count(*)`+
+			` from `+strings.Join(tables, " ")+
+			qWhere, args).Scan(&tCount)
+		if err != nil {
+			return 0, d.HErr(err)
+		}
+
+		if lPars.OnlyCount {
+			return tCount, nil
+		}
+	}
+
+	dstV := reflect.ValueOf(dst)
+
+	if dstV.Kind() != reflect.Pointer {
+		return 0, d.HErr(errors.New("dst must be pointer to slice"))
+	}
+
+	dstV = reflect.Indirect(dstV)
+
+	if dstV.Kind() != reflect.Slice {
+		return 0, d.HErr(errors.New("dst must be pointer to slice"))
+	}
+
+	elemBaseType := dstV.Type().Elem()
+
+	elemType := elemBaseType
+
+	elemIsPtr := false
+
+	if elemType.Kind() == reflect.Pointer {
+		elemType = elemType.Elem()
+		elemIsPtr = true
+	}
+
+	if elemType.Kind() != reflect.Struct {
+		return 0, d.HErr(errors.New("dst element type must struct"))
+	}
+
+	if dstV.IsNil() {
+		dstV.Set(reflect.MakeSlice(reflect.SliceOf(elemBaseType), 0, 10))
+	}
+
+	// generate columns
+	colNames, colExps := d.HfGenerateColumns(lPars.Cols, allowedCols)
+
+	elemTypeVisibleFields := reflect.VisibleFields(elemType)
+
+	elemFieldNameMap := make(map[string]string, len(colNames))
+
+	for _, field := range elemTypeVisibleFields {
+		if field.Anonymous || !field.IsExported() {
+			continue
+		}
+
+		fieldTag := field.Tag.Get(d.opts.FieldTag)
+		if fieldTag != "" {
+			fieldTag = strings.SplitN(fieldTag, ",", 2)[0]
+		}
+		if fieldTag == "" {
+			continue
+		}
+
+		elemFieldNameMap[fieldTag] = field.Name
+	}
+
+	scanFieldNames := make([]string, 0, len(colNames))
+
+	var fieldName string
+
+	for _, cn := range colNames {
+		if fieldName = elemFieldNameMap[cn]; fieldName != "" {
+			scanFieldNames = append(scanFieldNames, fieldName)
+		} else {
+			return 0, d.HErr(errors.New("field '" + cn + "' not found in element struct"))
+		}
+	}
+
+	qOrderBy := ``
+
+	if lPars.SortName != "" {
+		if sortExprs := allowedSortNames[lPars.SortName]; sortExprs != "" {
+			qOrderBy = ` order by ` + sortExprs
+		}
+	} else {
+		if sortExprs := d.HfGenerateSort(lPars.Sort, allowedSorts); len(sortExprs) > 0 {
+			qOrderBy = ` order by ` + strings.Join(sortExprs, ", ")
+		}
+	}
+
+	qOffset := ``
+	qLimit := ``
+
+	if lPars.PageSize > 0 {
+		qOffset = ` offset ` + strconv.FormatInt(lPars.Page*lPars.PageSize, 10)
+		qLimit = ` limit ` + strconv.FormatInt(lPars.PageSize, 10)
+	}
+
+	query := `select ` + strings.Join(colExps, ",") +
+		` from ` + strings.Join(tables, " ") +
+		qWhere +
+		qOrderBy +
+		qOffset +
+		qLimit
+
+	// fmt.Println(query)
+
+	rows, err := d.DbQueryM(ctx, query, args)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var scanItemPtr reflect.Value
+	var scanItem reflect.Value
+	scanFields := make([]any, len(scanFieldNames))
+
+	for rows.Next() {
+		scanItemPtr = reflect.New(elemType)
+		scanItem = scanItemPtr.Elem()
+
+		for i, fName := range scanFieldNames {
+			scanFields[i] = scanItem.FieldByName(fName).Addr().Interface()
+		}
+
+		err = rows.Scan(scanFields...)
+		if err != nil {
+			return 0, d.HErr(err)
+		}
+
+		if elemIsPtr {
+			dstV.Set(reflect.Append(dstV, scanItemPtr))
+		} else {
+			dstV.Set(reflect.Append(dstV, scanItem))
 		}
 	}
 	if err = rows.Err(); err != nil {
