@@ -10,15 +10,14 @@ import (
 // Options
 
 type OptionsSt struct {
-	Dsn                string
-	Timezone           string
-	MaxConns           int32
-	MinConns           int32
-	MaxConnLifetime    time.Duration
-	MaxConnIdleTime    time.Duration
-	HealthCheckPeriod  time.Duration
-	FieldTag           string
-	IgnoreFlagFieldTag string
+	Dsn               string
+	Timezone          string
+	MaxConns          int32
+	MinConns          int32
+	MaxConnLifetime   time.Duration
+	MaxConnIdleTime   time.Duration
+	HealthCheckPeriod time.Duration
+	FieldTag          string
 }
 
 func (o *OptionsSt) mergeWithDefaults() {
@@ -42,9 +41,6 @@ func (o *OptionsSt) mergeWithDefaults() {
 	}
 	if o.FieldTag == "" {
 		o.FieldTag = defaultOptions.FieldTag
-	}
-	if o.IgnoreFlagFieldTag == "" {
-		o.IgnoreFlagFieldTag = defaultOptions.IgnoreFlagFieldTag
 	}
 }
 

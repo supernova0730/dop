@@ -305,28 +305,10 @@ func (d *St) HfList(
 		dstV.Set(reflect.MakeSlice(reflect.SliceOf(elemBaseType), 0, 10))
 	}
 
+	elemFieldNameMap := d.hfGetStructFieldMap(reflect.VisibleFields(elemType))
+
 	// generate columns
-	colNames, colExps := d.HfGenerateColumns(lPars.Cols, allowedCols)
-
-	elemTypeVisibleFields := reflect.VisibleFields(elemType)
-
-	elemFieldNameMap := make(map[string]string, len(colNames))
-
-	for _, field := range elemTypeVisibleFields {
-		if field.Anonymous || !field.IsExported() {
-			continue
-		}
-
-		fieldTag := field.Tag.Get(d.opts.FieldTag)
-		if fieldTag != "" {
-			fieldTag = strings.SplitN(fieldTag, ",", 2)[0]
-		}
-		if fieldTag == "" {
-			continue
-		}
-
-		elemFieldNameMap[fieldTag] = field.Name
-	}
+	colNames, colExps := d.hfGenerateColumns(lPars.Cols, allowedCols, elemFieldNameMap)
 
 	scanFieldNames := make([]string, 0, len(colNames))
 
@@ -406,6 +388,18 @@ func (d *St) HfList(
 }
 
 func (d *St) HfGenerateColumns(rNames []string, allowed map[string]string) ([]string, []string) {
+	return d.hfGenerateColumns(rNames, allowed, nil)
+}
+
+func (d *St) hfGenerateColumns(rNames []string, allowed map[string]string, structFieldNameMap map[string]string) ([]string, []string) {
+	if len(allowed) == 0 {
+		allowed = make(map[string]string, len(structFieldNameMap))
+
+		for tagName := range structFieldNameMap {
+			allowed[tagName] = tagName
+		}
+	}
+
 	colNames := make([]string, 0, len(allowed))
 	colExps := make([]string, 0, cap(colNames))
 
@@ -459,9 +453,18 @@ func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args ma
 
 	dstV = reflect.Indirect(dstV)
 
-	// temporary
 	if dstV.Kind() != reflect.Struct {
 		return d.HErr(errors.New("dst element type must struct"))
+	}
+
+	elemFieldNameMap := d.hfGetStructFieldMap(reflect.VisibleFields(dstV.Type()))
+
+	if len(allowedCols) == 0 {
+		allowedCols = make(map[string]string, len(elemFieldNameMap))
+
+		for tagName := range elemFieldNameMap {
+			allowedCols[tagName] = tagName
+		}
 	}
 
 	colNames := make([]string, 0, len(allowedCols))
@@ -472,24 +475,15 @@ func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args ma
 		colExps = append(colExps, expr)
 	}
 
-	elemTypeFields := reflect.VisibleFields(dstV.Type())
-
 	scanFields := make([]any, len(colNames))
 
+	var fieldName string
+
 	for cnI, cn := range colNames {
-		for _, field := range elemTypeFields {
-			if field.Anonymous || !field.IsExported() {
-				continue
-			}
-
-			fieldTag := field.Tag.Get(d.opts.FieldTag)
-			if fieldTag == "" || strings.SplitN(fieldTag, ",", 2)[0] != cn {
-				continue
-			}
-
-			scanFields[cnI] = dstV.FieldByIndex(field.Index).Addr().Interface()
-
-			break
+		if fieldName = elemFieldNameMap[cn]; fieldName != "" {
+			scanFields[cnI] = dstV.FieldByName(fieldName).Addr().Interface()
+		} else {
+			return d.HErr(errors.New("field '" + cn + "' not found in element struct"))
 		}
 	}
 
@@ -513,6 +507,28 @@ func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args ma
 	}
 
 	return nil
+}
+
+func (d *St) hfGetStructFieldMap(fields []reflect.StructField) map[string]string {
+	result := make(map[string]string, 30)
+
+	for _, field := range fields {
+		if field.Anonymous || !field.IsExported() {
+			continue
+		}
+
+		fieldTag := field.Tag.Get(d.opts.FieldTag)
+		if fieldTag != "" {
+			fieldTag = strings.SplitN(fieldTag, ",", 2)[0]
+		}
+		if fieldTag == "" || fieldTag == "-" {
+			continue
+		}
+
+		result[fieldTag] = field.Name
+	}
+
+	return result
 }
 
 func (d *St) HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error {
@@ -572,38 +588,33 @@ func (d *St) HfUpdate(ctx context.Context, table string, obj any, conds []string
 
 func (d *St) HfGetCUFields(obj any) map[string]any {
 	v := reflect.Indirect(reflect.ValueOf(obj))
-	vt := v.Type()
+
+	vFields := reflect.VisibleFields(v.Type())
+
+	result := make(map[string]any, len(vFields))
 
 	var vField reflect.Value
-	var vtField reflect.StructField
-	var fieldTag string
+	var fieldTag []string
 
-	result := make(map[string]any)
-
-	for i := 0; i < v.NumField(); i++ {
-		vField = v.Field(i)
-		vtField = vt.Field(i)
-
-		switch vtField.Type.Kind() {
+	for _, field := range vFields {
+		switch field.Type.Kind() {
 		case reflect.Pointer, reflect.Slice:
 		default:
 			continue
 		}
 
-		fieldTag = vtField.Tag.Get(d.opts.FieldTag)
-		if fieldTag == "" || fieldTag == "-" {
+		fieldTag = strings.Split(field.Tag.Get(d.opts.FieldTag), ",")
+		if len(fieldTag) == 0 || fieldTag[0] == "-" {
 			continue
 		}
+
+		vField = v.FieldByIndex(field.Index)
 
 		if vField.IsNil() {
 			continue
 		}
 
-		if vtField.Tag.Get(d.opts.IgnoreFlagFieldTag) == "-" {
-			continue
-		}
-
-		result[strings.SplitN(fieldTag, ",", 2)[0]] = vField.Interface()
+		result[fieldTag[0]] = vField.Interface()
 	}
 
 	return result
