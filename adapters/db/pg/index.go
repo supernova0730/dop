@@ -612,7 +612,7 @@ func (d *St) HfGetCUFields(obj any) map[string]any {
 
 func (d *St) HfOptionalWhere(conds []string) string {
 	if len(conds) > 0 {
-		return `where ` + strings.Join(conds, " and ")
+		return ` where ` + strings.Join(conds, " and ") + ` `
 	}
 	return ``
 }
