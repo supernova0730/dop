@@ -153,9 +153,6 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	}
 
 	if rep.StatusCode < 200 || rep.StatusCode > 299 {
-		if rep.StatusCode == 401 || rep.StatusCode == 403 {
-			return nil, dopErrs.NotAuthorized
-		}
 		if logError {
 			c.lg.Errorw(
 				opts.BaseLogPrefix+opts.LogPrefix+"Bad status code", nil,
@@ -165,16 +162,17 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 				"req_body", string(reqBody),
 			)
 		}
+		if rep.StatusCode == 401 || rep.StatusCode == 403 {
+			return nil, dopErrs.NotAuthorized
+		}
 		return nil, dopErrs.BadStatusCode
 	}
 
-	if len(repBody) > 0 {
-		if opts.LogFlags&httpc.LogResponse > 0 {
-			c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"response: /"+opts.Path,
-				"uri", uri,
-				"body", string(repBody),
-			)
-		}
+	if opts.LogFlags&httpc.LogResponse > 0 {
+		c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"response: /"+opts.Path,
+			"uri", uri,
+			"body", string(repBody),
+		)
 	}
 
 	return repBody, nil
