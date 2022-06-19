@@ -5,7 +5,6 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
-	"github.com/rendau/dop/dopTypes"
 )
 
 type RDBFull interface {
@@ -31,17 +30,7 @@ type RDBConnection interface {
 type RDBConnectionWithHelpers interface {
 	RDBConnection
 
-	HfList(
-		ctx context.Context,
-		dst any,
-		tables, conds []string,
-		args map[string]any,
-		lPars dopTypes.ListParams,
-		allowedCols map[string]string,
-		allowedSorts map[string]string,
-		allowedSortNames map[string]string,
-	) (int64, error)
-	HfGenerateColumns(rNames []string, allowed map[string]string) ([]string, []string)
+	HfList(ctx context.Context, ops RDBListOptions) (int64, error)
 	HfGenerateSort(rNames []string, allowed map[string]string) []string
 	HfGet(ctx context.Context, dst any, tables, conds []string, args map[string]any, allowedCols map[string]string) error
 	HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error

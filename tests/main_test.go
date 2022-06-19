@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/rendau/dop/adapters/db"
 	"github.com/rendau/dop/adapters/db/pg"
 	"github.com/rendau/dop/adapters/logger/zap"
 	"github.com/rendau/dop/dopTools"
@@ -15,13 +16,17 @@ import (
 
 var (
 	bgCtx = context.Background()
-	lg    = zap.New("info", true)
-	db    *pg.St
+	app   = struct {
+		lg *zap.St
+		db *pg.St
+	}{
+		lg: zap.New("info", true),
+	}
 )
 
 func errCheck(err error) {
 	if err != nil {
-		lg.Fatal(err)
+		app.lg.Fatal(err)
 	}
 }
 
@@ -32,7 +37,7 @@ func TestMain(m *testing.M) {
 
 	viper.SetDefault("PG_DSN", "postgres://localhost/dop")
 
-	db, err = pg.New(true, lg, pg.OptionsSt{
+	app.db, err = pg.New(true, app.lg, pg.OptionsSt{
 		Dsn: viper.GetString("PG_DSN"),
 	})
 	errCheck(err)
@@ -40,11 +45,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestDop(t *testing.T) {
-	err := db.DbExec(bgCtx, `drop table if exists t1 cascade`)
+func TestDbPgHfList(t *testing.T) {
+	err := app.db.DbExec(bgCtx, `drop table if exists t1 cascade`)
 	errCheck(err)
 
-	err = db.DbExec(bgCtx, `
+	err = app.db.DbExec(bgCtx, `
 		create table t1 (
 			c1 int,
 			c2 int[],
@@ -54,10 +59,10 @@ func TestDop(t *testing.T) {
 	`)
 	errCheck(err)
 
-	err = db.DbExec(bgCtx, `truncate t1 restart identity cascade`)
+	err = app.db.DbExec(bgCtx, `truncate t1 restart identity cascade`)
 	errCheck(err)
 
-	err = db.DbExec(bgCtx, `
+	err = app.db.DbExec(bgCtx, `
 		insert into t1 (c1, c2, c3, c4) values
 			(1, array [1, 2, 3, 4], '{"a": 1, "b": [1, 2], "c": "asd"}', '123')
 			, (2, array [4,3,1], '{"a": 4, "b": [8], "c": "iii"}', 'poi')
@@ -78,30 +83,43 @@ func TestDop(t *testing.T) {
 
 	type T1St struct {
 		C1 *int64 `json:"c1" db:"c1"`
+		CC string `json:"cc" db:"cc"`
 		T1SubSt
 	}
 
 	result := make([]*T1St, 0, 10)
 
-	_, err = db.HfList(
-		bgCtx,
-		&result,
-		[]string{`t1`},
-		nil,
-		nil,
-		dopTypes.ListParams{},
-		nil,
-		map[string]string{
+	_, err = app.db.HfList(bgCtx, db.RDBListOptions{
+		Dst: &result,
+		ColExprs: map[string]string{
+			"cc": `'hello'`,
+		},
+		Tables: []string{`t1`},
+		LPars:  dopTypes.ListParams{},
+		AllowedSorts: map[string]string{
 			"default": "c1",
 		},
-		nil,
-	)
+	})
+	// _, err = db.HfList(
+	// 	bgCtx,
+	// 	&result,
+	// 	[]string{`t1`},
+	// 	nil,
+	// 	nil,
+	// 	dopTypes.ListParams{},
+	// 	nil,
+	// 	map[string]string{
+	// 		"default": "c1",
+	// 	},
+	// 	nil,
+	// )
 	errCheck(err)
 
 	require.Len(t, result, 2)
 
 	require.Equal(t, &T1St{
 		C1: dopTools.NewPtr(int64(1)),
+		CC: "hello",
 		T1SubSt: T1SubSt{
 			C2: dopTools.NewSlicePtr(int64(1), int64(2), int64(3), int64(4)),
 			C3: &T1C3St{
@@ -115,6 +133,7 @@ func TestDop(t *testing.T) {
 
 	require.Equal(t, &T1St{
 		C1: dopTools.NewPtr(int64(2)),
+		CC: "hello",
 		T1SubSt: T1SubSt{
 			C2: dopTools.NewSlicePtr(int64(4), int64(3), int64(1)),
 			C3: &T1C3St{

@@ -14,7 +14,6 @@ import (
 	"github.com/rendau/dop/adapters/db"
 	"github.com/rendau/dop/adapters/logger"
 	"github.com/rendau/dop/dopErrs"
-	"github.com/rendau/dop/dopTypes"
 )
 
 type St struct {
@@ -243,34 +242,26 @@ func (d *St) HErr(err error) error {
 }
 
 // helpers
-func (d *St) HfList(
-	ctx context.Context,
-	dst any,
-	tables, conds []string,
-	args map[string]any,
-	lPars dopTypes.ListParams,
-	allowedCols map[string]string,
-	allowedSorts map[string]string,
-	allowedSortNames map[string]string,
-) (int64, error) {
+
+func (d *St) HfList(ctx context.Context, ops db.RDBListOptions) (int64, error) {
 	var tCount int64
 
-	qWhere := d.HfOptionalWhere(conds)
+	qWhere := d.HfOptionalWhere(ops.Conds)
 
-	if (lPars.WithTotalCount && lPars.PageSize > 0) || lPars.OnlyCount {
+	if (ops.LPars.WithTotalCount && ops.LPars.PageSize > 0) || ops.LPars.OnlyCount {
 		err := d.DbQueryRowM(ctx, `select count(*)`+
-			` from `+strings.Join(tables, " ")+
-			qWhere, args).Scan(&tCount)
+			` from `+strings.Join(ops.Tables, " ")+
+			qWhere, ops.Args).Scan(&tCount)
 		if err != nil {
 			return 0, d.HErr(err)
 		}
 
-		if lPars.OnlyCount {
+		if ops.LPars.OnlyCount {
 			return tCount, nil
 		}
 	}
 
-	dstV := reflect.ValueOf(dst)
+	dstV := reflect.ValueOf(ops.Dst)
 
 	if dstV.Kind() != reflect.Pointer {
 		return 0, d.HErr(errors.New("dst must be pointer to slice"))
@@ -304,28 +295,16 @@ func (d *St) HfList(
 	elemFieldNameMap := d.hfGetStructFieldMap(reflect.VisibleFields(elemType))
 
 	// generate columns
-	colNames, colExps := d.hfGenerateColumns(lPars.Cols, allowedCols, elemFieldNameMap)
-
-	scanFieldNames := make([]string, 0, len(colNames))
-
-	var fieldName string
-
-	for _, cn := range colNames {
-		if fieldName = elemFieldNameMap[cn]; fieldName != "" {
-			scanFieldNames = append(scanFieldNames, fieldName)
-		} else {
-			return 0, d.HErr(errors.New("field '" + cn + "' not found in element struct"))
-		}
-	}
+	colExps, scanFieldNames := d.hfGenerateColumns(elemFieldNameMap, ops)
 
 	qOrderBy := ``
 
-	if lPars.SortName != "" {
-		if sortExprs := allowedSortNames[lPars.SortName]; sortExprs != "" {
+	if ops.LPars.SortName != "" {
+		if sortExprs := ops.AllowedSortNames[ops.LPars.SortName]; sortExprs != "" {
 			qOrderBy = ` order by ` + sortExprs
 		}
 	} else {
-		if sortExprs := d.HfGenerateSort(lPars.Sort, allowedSorts); len(sortExprs) > 0 {
+		if sortExprs := d.HfGenerateSort(ops.LPars.Sort, ops.AllowedSorts); len(sortExprs) > 0 {
 			qOrderBy = ` order by ` + strings.Join(sortExprs, ", ")
 		}
 	}
@@ -333,13 +312,13 @@ func (d *St) HfList(
 	qOffset := ``
 	qLimit := ``
 
-	if lPars.PageSize > 0 {
-		qOffset = ` offset ` + strconv.FormatInt(lPars.Page*lPars.PageSize, 10)
-		qLimit = ` limit ` + strconv.FormatInt(lPars.PageSize, 10)
+	if ops.LPars.PageSize > 0 {
+		qOffset = ` offset ` + strconv.FormatInt(ops.LPars.Page*ops.LPars.PageSize, 10)
+		qLimit = ` limit ` + strconv.FormatInt(ops.LPars.PageSize, 10)
 	}
 
 	query := `select ` + strings.Join(colExps, ",") +
-		` from ` + strings.Join(tables, " ") +
+		` from ` + strings.Join(ops.Tables, " ") +
 		qWhere +
 		qOrderBy +
 		qOffset +
@@ -347,7 +326,7 @@ func (d *St) HfList(
 
 	// fmt.Println(query)
 
-	rows, err := d.DbQueryM(ctx, query, args)
+	rows, err := d.DbQueryM(ctx, query, ops.Args)
 	if err != nil {
 		return 0, err
 	}
@@ -383,40 +362,41 @@ func (d *St) HfList(
 	return tCount, nil
 }
 
-func (d *St) HfGenerateColumns(rNames []string, allowed map[string]string) ([]string, []string) {
-	return d.hfGenerateColumns(rNames, allowed, nil)
-}
+func (d *St) hfGenerateColumns(stFields map[string]string, ops db.RDBListOptions) ([]string, []string) {
+	colExps := make([]string, 0, len(stFields))
+	fieldNames := make([]string, 0, cap(colExps))
 
-func (d *St) hfGenerateColumns(rNames []string, allowed map[string]string, structFieldNameMap map[string]string) ([]string, []string) {
-	if len(allowed) == 0 {
-		allowed = make(map[string]string, len(structFieldNameMap))
-
-		for tagName := range structFieldNameMap {
-			allowed[tagName] = tagName
-		}
+	colExpMap := ops.ColExprs
+	if colExpMap == nil {
+		colExpMap = map[string]string{}
 	}
 
-	colNames := make([]string, 0, len(allowed))
-	colExps := make([]string, 0, cap(colNames))
-
 	var ok bool
-	var cn, exp string
+	var cn, exp, fn string
 
-	if len(rNames) == 0 {
-		for k, v := range allowed {
-			colNames = append(colNames, k)
-			colExps = append(colExps, v)
+	if len(ops.LPars.Cols) == 0 {
+		for k, v := range stFields {
+			if exp = colExpMap[k]; exp != "" {
+				colExps = append(colExps, exp)
+			} else {
+				colExps = append(colExps, k)
+			}
+			fieldNames = append(fieldNames, v)
 		}
 	} else {
-		for _, cn = range rNames {
-			if exp, ok = allowed[cn]; ok {
-				colNames = append(colNames, cn)
-				colExps = append(colExps, exp)
+		for _, cn = range ops.LPars.Cols {
+			if fn, ok = stFields[cn]; ok {
+				if exp = colExpMap[cn]; exp != "" {
+					colExps = append(colExps, exp)
+				} else {
+					colExps = append(colExps, cn)
+				}
+				fieldNames = append(fieldNames, fn)
 			}
 		}
 	}
 
-	return colNames, colExps
+	return colExps, fieldNames
 }
 
 func (d *St) HfGenerateSort(rNames []string, allowed map[string]string) []string {
@@ -440,7 +420,7 @@ func (d *St) HfGenerateSort(rNames []string, allowed map[string]string) []string
 	return res
 }
 
-func (d *St) HfGet(ctx context.Context, dst any, tables, conds []string, args map[string]any, allowedCols map[string]string) error {
+func (d *St) HfGet(ctx context.Context, ops db.RDBGetOptions) error {
 	dstV := reflect.ValueOf(dst)
 
 	if dstV.Kind() != reflect.Pointer {
@@ -511,7 +491,7 @@ func (d *St) hfGetStructFieldMap(fields []reflect.StructField) map[string]string
 		if fieldTag != "" {
 			fieldTag = strings.SplitN(fieldTag, ",", 2)[0]
 		}
-		if fieldTag == "" || fieldTag == "-" {
+		if fieldTag == "" {
 			continue
 		}
 
