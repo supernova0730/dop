@@ -22,3 +22,23 @@ type RDBGetOptions struct {
 	Args     map[string]any
 	ColExprs map[string]string
 }
+
+type RDBCreateOptions struct {
+	Table  string
+	Obj    any
+	RetCol string
+	RetV   any
+}
+
+type RDBUpdateOptions struct {
+	Table string
+	Obj   any
+	Conds []string
+	Args  map[string]any
+}
+
+type RDBDeleteOptions struct {
+	Table string
+	Conds []string
+	Args  map[string]any
+}

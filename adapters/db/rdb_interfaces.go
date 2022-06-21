@@ -32,12 +32,12 @@ type RDBConnectionWithHelpers interface {
 
 	HfList(ctx context.Context, ops RDBListOptions) (int64, error)
 	HfGenerateSort(rNames []string, allowed map[string]string) []string
-	HfGet(ctx context.Context, dst any, tables, conds []string, args map[string]any, allowedCols map[string]string) error
-	HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error
-	HfUpdate(ctx context.Context, table string, obj any, conds []string, condArgs map[string]any) error
+	HfGet(ctx context.Context, ops RDBGetOptions) error
+	HfCreate(ctx context.Context, ops RDBCreateOptions) error
+	HfUpdate(ctx context.Context, ops RDBUpdateOptions) error
 	HfGetCUFields(obj any) map[string]any
 	HfOptionalWhere(conds []string) string
-	HfDelete(ctx context.Context, table string, conds []string, args map[string]any) error
+	HfDelete(ctx context.Context, ops RDBDeleteOptions) error
 }
 
 type RDBContextTransaction interface {

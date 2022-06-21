@@ -421,7 +421,7 @@ func (d *St) HfGenerateSort(rNames []string, allowed map[string]string) []string
 }
 
 func (d *St) HfGet(ctx context.Context, ops db.RDBGetOptions) error {
-	dstV := reflect.ValueOf(dst)
+	dstV := reflect.ValueOf(ops.Dst)
 
 	if dstV.Kind() != reflect.Pointer {
 		return d.HErr(errors.New("dst must be pointer to slice"))
@@ -435,44 +435,33 @@ func (d *St) HfGet(ctx context.Context, ops db.RDBGetOptions) error {
 
 	elemFieldNameMap := d.hfGetStructFieldMap(reflect.VisibleFields(dstV.Type()))
 
-	if len(allowedCols) == 0 {
-		allowedCols = make(map[string]string, len(elemFieldNameMap))
-
-		for tagName := range elemFieldNameMap {
-			allowedCols[tagName] = tagName
-		}
+	colExprs := ops.ColExprs
+	if colExprs == nil {
+		colExprs = map[string]string{}
 	}
 
-	colNames := make([]string, 0, len(allowedCols))
-	colExps := make([]string, 0, len(allowedCols))
+	colExps := make([]string, 0, len(elemFieldNameMap))
+	scanFields := make([]any, 0, cap(colExps))
 
-	for cn, expr := range allowedCols {
-		colNames = append(colNames, cn)
-		colExps = append(colExps, expr)
-	}
+	var exp string
 
-	scanFields := make([]any, len(colNames))
-
-	var fieldName string
-
-	for cnI, cn := range colNames {
-		if fieldName = elemFieldNameMap[cn]; fieldName != "" {
-			scanFields[cnI] = dstV.FieldByName(fieldName).Addr().Interface()
+	for cn, fieldName := range elemFieldNameMap {
+		if exp = colExprs[cn]; exp != "" {
+			colExps = append(colExps, exp)
 		} else {
-			return d.HErr(errors.New("field '" + cn + "' not found in element struct"))
+			colExps = append(colExps, cn)
 		}
+
+		scanFields = append(scanFields, dstV.FieldByName(fieldName).Addr().Interface())
 	}
 
 	query := `select ` + strings.Join(colExps, ",") +
-		` from ` + strings.Join(tables, " ") +
-		d.HfOptionalWhere(conds) +
+		` from ` + strings.Join(ops.Tables, " ") +
+		d.HfOptionalWhere(ops.Conds) +
 		` limit 1`
 
-	err := d.DbQueryRowM(ctx, query, args).Scan(scanFields...)
+	err := d.DbQueryRowM(ctx, query, ops.Args).Scan(scanFields...)
 	if err != nil {
-		// if nilOnNoRows && errors.Is(err, dopErrs.NoRows) {
-		// 	return nil
-		// }
 		return err
 	}
 
@@ -491,7 +480,7 @@ func (d *St) hfGetStructFieldMap(fields []reflect.StructField) map[string]string
 		if fieldTag != "" {
 			fieldTag = strings.SplitN(fieldTag, ",", 2)[0]
 		}
-		if fieldTag == "" {
+		if fieldTag == "" || fieldTag == "-" {
 			continue
 		}
 
@@ -501,8 +490,8 @@ func (d *St) hfGetStructFieldMap(fields []reflect.StructField) map[string]string
 	return result
 }
 
-func (d *St) HfCreate(ctx context.Context, table string, obj any, retCol string, retV any) error {
-	fMap := d.HfGetCUFields(obj)
+func (d *St) HfCreate(ctx context.Context, ops db.RDBCreateOptions) error {
+	fMap := d.HfGetCUFields(ops.Obj)
 
 	fields := make([]string, len(fMap))
 	values := make([]string, len(fields))
@@ -517,19 +506,19 @@ func (d *St) HfCreate(ctx context.Context, table string, obj any, retCol string,
 	}
 
 	query := `
-		insert into ` + table + `(` + strings.Join(fields, ",") + `)
+		insert into ` + ops.Table + `(` + strings.Join(fields, ",") + `)
         values (` + strings.Join(values, ",") + `)
 	`
 
-	if retCol != "" && retV != nil {
-		return d.DbQueryRow(ctx, query+" returning "+retCol, args...).Scan(retV)
+	if ops.RetCol != "" && ops.RetV != nil {
+		return d.DbQueryRow(ctx, query+" returning "+ops.RetCol, args...).Scan(ops.RetV)
 	} else {
 		return d.DbExec(ctx, query, args...)
 	}
 }
 
-func (d *St) HfUpdate(ctx context.Context, table string, obj any, conds []string, condArgs map[string]any) error {
-	fMap := d.HfGetCUFields(obj)
+func (d *St) HfUpdate(ctx context.Context, ops db.RDBUpdateOptions) error {
+	fMap := d.HfGetCUFields(ops.Obj)
 
 	fields := make([]string, 0, len(fMap))
 
@@ -542,13 +531,13 @@ func (d *St) HfUpdate(ctx context.Context, table string, obj any, conds []string
 	}
 
 	query := `
-		update ` + table + `
+		update ` + ops.Table + `
 		set ` + strings.Join(fields, ",")
 
-	if len(conds) > 0 {
-		query += ` where ` + strings.Join(conds, " and ")
+	if len(ops.Conds) > 0 {
+		query += ` where ` + strings.Join(ops.Conds, " and ")
 
-		for k, v := range condArgs {
+		for k, v := range ops.Args {
 			fMap[k] = v
 		}
 	}
@@ -597,6 +586,6 @@ func (d *St) HfOptionalWhere(conds []string) string {
 	return ``
 }
 
-func (d *St) HfDelete(ctx context.Context, table string, conds []string, args map[string]any) error {
-	return d.DbExecM(ctx, `delete from `+table+d.HfOptionalWhere(conds), args)
+func (d *St) HfDelete(ctx context.Context, ops db.RDBDeleteOptions) error {
+	return d.DbExecM(ctx, `delete from `+ops.Table+d.HfOptionalWhere(ops.Conds), ops.Args)
 }
