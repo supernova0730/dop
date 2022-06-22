@@ -491,7 +491,7 @@ func (d *St) hfGetStructFieldMap(fields []reflect.StructField) map[string]string
 }
 
 func (d *St) HfCreate(ctx context.Context, ops db.RDBCreateOptions) error {
-	fMap := d.HfGetCUFields(ops.Obj)
+	fMap, _ := d.HfGetCUFields(ops.Obj)
 
 	fields := make([]string, len(fMap))
 	values := make([]string, len(fields))
@@ -518,12 +518,16 @@ func (d *St) HfCreate(ctx context.Context, ops db.RDBCreateOptions) error {
 }
 
 func (d *St) HfUpdate(ctx context.Context, ops db.RDBUpdateOptions) error {
-	fMap := d.HfGetCUFields(ops.Obj)
+	fMap, mergeFlagMap := d.HfGetCUFields(ops.Obj)
 
 	fields := make([]string, 0, len(fMap))
 
 	for k := range fMap {
-		fields = append(fields, k+`=${`+k+`}`)
+		if mergeFlagMap[k] {
+			fields = append(fields, k+`=(`+k+` || ${`+k+`})`)
+		} else {
+			fields = append(fields, k+`=${`+k+`}`)
+		}
 	}
 
 	if len(fields) == 0 {
@@ -545,15 +549,18 @@ func (d *St) HfUpdate(ctx context.Context, ops db.RDBUpdateOptions) error {
 	return d.DbExecM(ctx, query, fMap)
 }
 
-func (d *St) HfGetCUFields(obj any) map[string]any {
+func (d *St) HfGetCUFields(obj any) (map[string]any, map[string]bool) {
 	v := reflect.Indirect(reflect.ValueOf(obj))
 
 	vFields := reflect.VisibleFields(v.Type())
 
-	result := make(map[string]any, len(vFields))
+	tagFieldMap := make(map[string]any, len(vFields))
+	mergeFlagMap := make(map[string]bool, len(vFields))
 
 	var vField reflect.Value
-	var fieldTag []string
+	var tagValues []string
+	var tagName string
+	var tv string
 
 	for _, field := range vFields {
 		switch field.Type.Kind() {
@@ -562,8 +569,13 @@ func (d *St) HfGetCUFields(obj any) map[string]any {
 			continue
 		}
 
-		fieldTag = strings.Split(field.Tag.Get(d.opts.FieldTag), ",")
-		if len(fieldTag) == 0 || fieldTag[0] == "-" {
+		tagValues = strings.Split(field.Tag.Get(d.opts.FieldTag), ",")
+		if len(tagValues) == 0 {
+			continue
+		}
+
+		tagName = tagValues[0]
+		if tagName == "" || tagName == "-" {
 			continue
 		}
 
@@ -573,10 +585,17 @@ func (d *St) HfGetCUFields(obj any) map[string]any {
 			continue
 		}
 
-		result[fieldTag[0]] = vField.Interface()
+		tagFieldMap[tagName] = vField.Interface()
+
+		for _, tv = range tagValues[1:] {
+			if tv == "merge" {
+				mergeFlagMap[tagName] = true
+				break
+			}
+		}
 	}
 
-	return result
+	return tagFieldMap, mergeFlagMap
 }
 
 func (d *St) HfOptionalWhere(conds []string) string {

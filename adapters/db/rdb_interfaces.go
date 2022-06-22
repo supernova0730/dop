@@ -35,7 +35,7 @@ type RDBConnectionWithHelpers interface {
 	HfGet(ctx context.Context, ops RDBGetOptions) error
 	HfCreate(ctx context.Context, ops RDBCreateOptions) error
 	HfUpdate(ctx context.Context, ops RDBUpdateOptions) error
-	HfGetCUFields(obj any) map[string]any
+	HfGetCUFields(obj any) (map[string]any, map[string]bool)
 	HfOptionalWhere(conds []string) string
 	HfDelete(ctx context.Context, ops RDBDeleteOptions) error
 }
