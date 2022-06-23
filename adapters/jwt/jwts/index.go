@@ -14,8 +14,8 @@ func New(httpc httpc.HttpC) *St {
 	}
 }
 
-func (p *St) Create(sub string, expSeconds int64, payload map[string]interface{}) (string, error) {
-	data := map[string]interface{}{}
+func (p *St) Create(sub string, expSeconds int64, payload map[string]any) (string, error) {
+	data := map[string]any{}
 
 	for k, v := range payload {
 		data[k] = v

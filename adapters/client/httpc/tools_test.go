@@ -15,7 +15,7 @@ func TestObject2UrlValues(t *testing.T) {
 	}
 
 	tests := []struct {
-		obj  interface{}
+		obj  any
 		want url.Values
 	}{
 		{

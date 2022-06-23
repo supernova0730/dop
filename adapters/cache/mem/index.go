@@ -30,7 +30,7 @@ func (c *St) Get(key string) ([]byte, bool, error) {
 	return data, true, nil
 }
 
-func (c *St) GetJsonObj(key string, dst interface{}) (bool, error) {
+func (c *St) GetJsonObj(key string, dst any) (bool, error) {
 	dataRaw, ok, err := c.Get(key)
 	if err != nil || !ok {
 		return ok, err
@@ -53,7 +53,7 @@ func (c *St) Set(key string, value []byte, expiration time.Duration) error {
 	return nil
 }
 
-func (c *St) SetJsonObj(key string, value interface{}, expiration time.Duration) error {
+func (c *St) SetJsonObj(key string, value any, expiration time.Duration) error {
 	dataRaw, err := json.Marshal(value)
 	if err != nil {
 		return err

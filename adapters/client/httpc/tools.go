@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func Object2UrlValues(obj interface{}) url.Values {
+func Object2UrlValues(obj any) url.Values {
 	result := url.Values{}
 
 	v := reflect.Indirect(reflect.ValueOf(obj))

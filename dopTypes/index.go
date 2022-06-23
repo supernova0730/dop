@@ -21,5 +21,5 @@ type PaginatedListRep struct {
 	PageSize   int64 `json:"page_size"`
 	TotalCount int64 `json:"total_count"`
 
-	// Results    interface{} `json:"results"`
+	// Results    any `json:"results"`
 }

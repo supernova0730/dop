@@ -28,7 +28,7 @@ type RequestSt struct {
 }
 
 type ResponseSt struct {
-	Obj interface{}
+	Obj any
 	Raw []byte
 }
 
@@ -91,7 +91,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 	return response.Raw, nil
 }
 
-func (c *St) SendJson(reqObj interface{}, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
@@ -111,7 +111,7 @@ func (c *St) SendJson(reqObj interface{}, opts httpc.OptionsSt) ([]byte, error) 
 	return repBody, nil
 }
 
-func (c *St) SendRecvJson(reqBody []byte, repObj interface{}, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
@@ -135,7 +135,7 @@ func (c *St) SendRecvJson(reqBody []byte, repObj interface{}, opts httpc.Options
 	return repBody, nil
 }
 
-func (c *St) SendJsonRecvJson(reqObj, repObj interface{}, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendJsonRecvJson(reqObj, repObj any, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
@@ -163,7 +163,7 @@ func (c *St) GetRequests() []*RequestSt {
 	return result
 }
 
-func (c *St) GetRequest(path string, obj interface{}) (*RequestSt, bool) {
+func (c *St) GetRequest(path string, obj any) (*RequestSt, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

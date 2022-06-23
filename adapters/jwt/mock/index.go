@@ -19,8 +19,16 @@ func New(lg logger.WarnAndError, testing bool) *St {
 	}
 }
 
-func (p *St) Create(sub string, expSeconds int64, payload map[string]interface{}) (string, error) {
-	payloadRaw, err := json.Marshal(payload)
+func (p *St) Create(sub string, expSeconds int64, payload map[string]any) (string, error) {
+	pld := make(map[string]any, len(payload)+1)
+
+	for k, v := range payload {
+		pld[k] = v
+	}
+
+	pld["sub"] = sub
+
+	payloadRaw, err := json.Marshal(pld)
 	if err != nil {
 		p.lg.Errorw("Fail to marshal data", err)
 		return "", err
