@@ -1,5 +1,9 @@
 package dopTypes
 
+import (
+	"time"
+)
+
 type ErrRep struct {
 	ErrorCode string            `json:"error_code"`
 	Desc      string            `json:"desc,omitempty"`
@@ -22,4 +26,14 @@ type PaginatedListRep struct {
 	TotalCount int64 `json:"total_count"`
 
 	// Results    any `json:"results"`
+}
+
+type PeriodPars struct {
+	TsGTE *time.Time `json:"ts_gte" form:"ts_gte"`
+	TsLTE *time.Time `json:"ts_lte" form:"ts_lte"`
+}
+
+type ChartVByTimeSt struct {
+	Ts time.Time `json:"ts"`
+	V  int64     `json:"v"`
 }
