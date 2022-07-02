@@ -20,6 +20,10 @@ type ListParams struct {
 	Sort           []string `json:"sort" form:"sort"`
 }
 
+type ListRep struct {
+	Results any `json:"results"`
+}
+
 type PaginatedListRep struct {
 	Page       int64 `json:"page"`
 	PageSize   int64 `json:"page_size"`
