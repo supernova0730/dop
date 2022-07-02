@@ -25,7 +25,11 @@ type PaginatedListRep struct {
 	PageSize   int64 `json:"page_size"`
 	TotalCount int64 `json:"total_count"`
 
-	// Results    any `json:"results"`
+	Results any `json:"results"`
+}
+
+type CreateRep struct {
+	Id any `json:"id"`
 }
 
 type PeriodPars struct {
