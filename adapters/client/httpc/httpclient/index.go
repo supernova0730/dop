@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -64,6 +65,8 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 }
 
 func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
+	var err error
+
 	uri := opts.BaseUrl + opts.Path
 
 	logError := opts.LogFlags&httpc.NoLogError <= 0
@@ -75,7 +78,15 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 		)
 	}
 
-	req, err := http.NewRequest(opts.Method, uri, bytes.NewBuffer(reqBody))
+	var req *http.Request
+
+	if opts.Timeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+		defer cancel()
+		req, err = http.NewRequestWithContext(ctx, opts.Method, uri, bytes.NewBuffer(reqBody))
+	} else {
+		req, err = http.NewRequest(opts.Method, uri, bytes.NewBuffer(reqBody))
+	}
 	if err != nil {
 		if logError {
 			c.lg.Errorw(opts.BaseLogPrefix+opts.LogPrefix+"Fail to create http-request", err)

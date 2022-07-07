@@ -22,6 +22,7 @@ type OptionsSt struct {
 	LogPrefix     string
 	RetryCount    int
 	RetryInterval time.Duration
+	Timeout       time.Duration
 }
 
 type BasicAuthCredsSt struct {
@@ -44,6 +45,7 @@ func (o OptionsSt) GetMergedWith(v OptionsSt) OptionsSt {
 		LogFlags:       o.LogFlags,
 		LogPrefix:      o.LogPrefix,
 		RetryCount:     o.RetryCount,
+		Timeout:        o.Timeout,
 	}
 
 	if v.Client != nil {
@@ -118,6 +120,13 @@ func (o OptionsSt) GetMergedWith(v OptionsSt) OptionsSt {
 			res.RetryInterval = 0
 		} else {
 			res.RetryInterval = v.RetryInterval
+		}
+	}
+	if v.Timeout != 0 {
+		if v.Timeout < 0 {
+			res.Timeout = 0
+		} else {
+			res.Timeout = v.Timeout
 		}
 	}
 
