@@ -45,6 +45,7 @@ func (o OptionsSt) GetMergedWith(v OptionsSt) OptionsSt {
 		LogFlags:       o.LogFlags,
 		LogPrefix:      o.LogPrefix,
 		RetryCount:     o.RetryCount,
+		RetryInterval:  o.RetryInterval,
 		Timeout:        o.Timeout,
 	}
 
