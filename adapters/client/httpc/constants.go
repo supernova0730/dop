@@ -5,4 +5,5 @@ const (
 	LogResponse        = 2
 	NoLogError         = 4
 	NoLogNotAuthorized = 8
+	NoLogBadStatus     = 16
 )

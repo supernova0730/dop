@@ -176,7 +176,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 			}
 			return nil, dopErrs.NotAuthorized
 		}
-		if logError {
+		if logError && opts.LogFlags&httpc.NoLogBadStatus <= 0 {
 			c.lg.Errorw(
 				opts.BaseLogPrefix+opts.LogPrefix+"Bad status code", nil,
 				"status_code", rep.StatusCode,
@@ -185,7 +185,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 				"req_body", string(reqBody),
 			)
 		}
-		return nil, dopErrs.BadStatusCode
+		return repBody, dopErrs.BadStatusCode
 	}
 
 	if opts.LogFlags&httpc.LogResponse > 0 {
@@ -215,7 +215,7 @@ func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, error) {
 
 	repBody, err := c.Send(reqBody, opts)
 	if err != nil {
-		return nil, err
+		return repBody, err
 	}
 
 	return repBody, nil
@@ -230,7 +230,7 @@ func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]b
 
 	repBody, err := c.Send(reqBody, opts)
 	if err != nil {
-		return nil, err
+		return repBody, err
 	}
 
 	if len(repBody) > 0 {
