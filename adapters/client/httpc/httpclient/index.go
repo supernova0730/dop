@@ -61,7 +61,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 		return repBody, nil
 	}
 
-	return nil, err
+	return repBody, err
 }
 
 func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
@@ -174,7 +174,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 					"req_body", string(reqBody),
 				)
 			}
-			return nil, dopErrs.NotAuthorized
+			return repBody, dopErrs.NotAuthorized
 		}
 		if logError && opts.LogFlags&httpc.NoLogBadStatus <= 0 {
 			c.lg.Errorw(
@@ -213,12 +213,7 @@ func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, error) {
 		return nil, err
 	}
 
-	repBody, err := c.Send(reqBody, opts)
-	if err != nil {
-		return repBody, err
-	}
-
-	return repBody, nil
+	return c.Send(reqBody, opts)
 }
 
 func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]byte, error) {
@@ -245,12 +240,11 @@ func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]b
 						"rep_body", string(repBody),
 					)
 				}
-				return nil, err
 			}
 		}
 	}
 
-	return repBody, nil
+	return repBody, err
 }
 
 func (c *St) SendJsonRecvJson(reqObj, repObj any, opts httpc.OptionsSt) ([]byte, error) {
