@@ -35,13 +35,14 @@ func (c *St) GetOptions() httpc.OptionsSt {
 	return c.opts
 }
 
-func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 	opts = c.opts.GetMergedWith(opts)
 
 	origLogFlags := opts.LogFlags
 
 	var err error
 	var repBody []byte
+	var statusCode int
 
 	for i := opts.RetryCount; i >= 0; i-- {
 		if i == 0 {
@@ -50,7 +51,7 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 			opts.LogFlags = origLogFlags | httpc.NoLogError
 		}
 
-		repBody, err = c.send(reqBody, opts)
+		repBody, statusCode, err = c.send(reqBody, opts)
 		if err != nil {
 			if opts.RetryInterval > 0 {
 				time.Sleep(opts.RetryInterval)
@@ -58,13 +59,13 @@ func (c *St) Send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 			continue
 		}
 
-		return repBody, nil
+		return repBody, statusCode, nil
 	}
 
-	return repBody, err
+	return repBody, statusCode, err
 }
 
-func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 	var err error
 
 	uri := opts.BaseUrl + opts.Path
@@ -91,7 +92,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 		if logError {
 			c.lg.Errorw(opts.BaseLogPrefix+opts.LogPrefix+"Fail to create http-request", err)
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
 	// Headers
@@ -145,9 +146,11 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 				"req_body", string(reqBody),
 			)
 		}
-		return nil, err
+		return nil, 0, err
 	}
 	defer rep.Body.Close()
+
+	statusCode := rep.StatusCode
 
 	// read response body
 	repBody, err := ioutil.ReadAll(rep.Body)
@@ -160,11 +163,11 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 				"req_body", string(reqBody),
 			)
 		}
-		return nil, err
+		return nil, statusCode, err
 	}
 
 	if rep.StatusCode < 200 || rep.StatusCode > 299 {
-		if rep.StatusCode == 401 || rep.StatusCode == 403 {
+		if rep.StatusCode == 401 {
 			if logError && opts.LogFlags&httpc.NoLogNotAuthorized <= 0 {
 				c.lg.Errorw(
 					opts.BaseLogPrefix+opts.LogPrefix+"Bad status code", nil,
@@ -174,7 +177,19 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 					"req_body", string(reqBody),
 				)
 			}
-			return repBody, dopErrs.NotAuthorized
+			return repBody, statusCode, dopErrs.NotAuthorized
+		}
+		if rep.StatusCode == 403 {
+			if logError && opts.LogFlags&httpc.NoLogPermissionDenied <= 0 {
+				c.lg.Errorw(
+					opts.BaseLogPrefix+opts.LogPrefix+"Bad status code", nil,
+					"status_code", rep.StatusCode,
+					"rep_body", string(repBody),
+					"uri", uri,
+					"req_body", string(reqBody),
+				)
+			}
+			return repBody, statusCode, dopErrs.PermissionDenied
 		}
 		if logError && opts.LogFlags&httpc.NoLogBadStatus <= 0 {
 			c.lg.Errorw(
@@ -185,7 +200,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 				"req_body", string(reqBody),
 			)
 		}
-		return repBody, dopErrs.BadStatusCode
+		return repBody, statusCode, dopErrs.BadStatusCode
 	}
 
 	if opts.LogFlags&httpc.LogResponse > 0 {
@@ -195,59 +210,81 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, error) {
 		)
 	}
 
-	return repBody, nil
+	return repBody, statusCode, nil
 }
 
-func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, int, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
 
-	opts.Headers["Content-Type"] = []string{"application/json"}
+	if len(opts.Headers.Values("Content-Type")) == 0 {
+		opts.Headers["Content-Type"] = []string{"application/json"}
+	}
 
 	reqBody, err := json.Marshal(reqObj)
 	if err != nil {
 		if opts.LogFlags&httpc.NoLogError <= 0 {
 			c.lg.Errorw(opts.LogPrefix+"Fail to marshal json", err)
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
 	return c.Send(reqBody, opts)
 }
 
-func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendRecvJson(reqBody []byte, repObj any, statusRepObj map[int]any, opts httpc.OptionsSt) ([]byte, int, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
 
-	opts.Headers["Accept"] = []string{"application/json"}
+	if len(opts.Headers.Values("Accept")) == 0 {
+		opts.Headers["Accept"] = []string{"application/json"}
+	}
 
-	repBody, err := c.Send(reqBody, opts)
+	repBody, statusCode, err := c.Send(reqBody, opts)
 	if err != nil {
-		return repBody, err
+		if err != dopErrs.BadStatusCode && err != dopErrs.NotAuthorized && err != dopErrs.PermissionDenied {
+			return repBody, statusCode, err
+		}
 	}
 
 	if len(repBody) > 0 {
-		if repObj != nil {
-			err = json.Unmarshal(repBody, repObj)
-			if err != nil {
-				if opts.LogFlags&httpc.NoLogError <= 0 {
-					c.lg.Errorw(
-						opts.LogPrefix+"Fail to unmarshal body", err,
-						"opts", opts,
-						"req_body", string(reqBody),
-						"rep_body", string(repBody),
-					)
+		if err == nil {
+			if repObj != nil {
+				err = json.Unmarshal(repBody, repObj)
+				if err != nil {
+					if opts.LogFlags&httpc.NoLogError <= 0 {
+						c.lg.Errorw(
+							opts.LogPrefix+"Fail to unmarshal body", err,
+							"opts", opts,
+							"req_body", string(reqBody),
+							"rep_body", string(repBody),
+						)
+					}
+				}
+			}
+		} else {
+			if rObj, ok := statusRepObj[statusCode]; ok {
+				err = json.Unmarshal(repBody, rObj)
+				if err != nil {
+					if opts.LogFlags&httpc.NoLogError <= 0 {
+						c.lg.Errorw(
+							opts.LogPrefix+"Fail to unmarshal body", err,
+							"opts", opts,
+							"req_body", string(reqBody),
+							"rep_body", string(repBody),
+						)
+					}
 				}
 			}
 		}
 	}
 
-	return repBody, err
+	return repBody, statusCode, err
 }
 
-func (c *St) SendJsonRecvJson(reqObj, repObj any, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendJsonRecvJson(reqObj, repObj any, statusRepObj map[int]any, opts httpc.OptionsSt) ([]byte, int, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
@@ -259,8 +296,8 @@ func (c *St) SendJsonRecvJson(reqObj, repObj any, opts httpc.OptionsSt) ([]byte,
 		if opts.LogFlags&httpc.NoLogError <= 0 {
 			c.lg.Errorw(opts.LogPrefix+"Fail to marshal json", err)
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
-	return c.SendRecvJson(reqBody, repObj, opts)
+	return c.SendRecvJson(reqBody, repObj, statusRepObj, opts)
 }

@@ -111,7 +111,7 @@ func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, error) {
 	return repBody, nil
 }
 
-func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendRecvJson(reqBody []byte, repObj any, statusRepObj map[int]any, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
@@ -135,7 +135,7 @@ func (c *St) SendRecvJson(reqBody []byte, repObj any, opts httpc.OptionsSt) ([]b
 	return repBody, nil
 }
 
-func (c *St) SendJsonRecvJson(reqObj, repObj any, opts httpc.OptionsSt) ([]byte, error) {
+func (c *St) SendJsonRecvJson(reqObj, repObj any, statusRepObj map[int]any, opts httpc.OptionsSt) ([]byte, error) {
 	if opts.Headers == nil {
 		opts.Headers = http.Header{}
 	}
@@ -147,7 +147,7 @@ func (c *St) SendJsonRecvJson(reqObj, repObj any, opts httpc.OptionsSt) ([]byte,
 		return nil, err
 	}
 
-	return c.SendRecvJson(reqBody, repObj, opts)
+	return c.SendRecvJson(reqBody, repObj, statusRepObj, opts)
 }
 
 func (c *St) GetRequests() []*RequestSt {
