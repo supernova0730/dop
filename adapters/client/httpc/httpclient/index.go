@@ -218,7 +218,8 @@ func (c *St) SendJson(reqObj any, opts httpc.OptionsSt) ([]byte, int, error) {
 		opts.Headers = http.Header{}
 	}
 
-	if len(opts.Headers.Values("Content-Type")) == 0 {
+	if len(c.opts.BaseHeaders.Values("Content-Type")) == 0 && len(c.opts.Headers.Values("Content-Type")) == 0 &&
+		len(opts.BaseHeaders.Values("Content-Type")) == 0 && len(opts.Headers.Values("Content-Type")) == 0 {
 		opts.Headers["Content-Type"] = []string{"application/json"}
 	}
 
@@ -238,7 +239,8 @@ func (c *St) SendRecvJson(reqBody []byte, repObj any, statusRepObj map[int]any, 
 		opts.Headers = http.Header{}
 	}
 
-	if len(opts.Headers.Values("Accept")) == 0 {
+	if len(c.opts.BaseHeaders.Values("Accept")) == 0 && len(c.opts.Headers.Values("Accept")) == 0 &&
+		len(opts.BaseHeaders.Values("Accept")) == 0 && len(opts.Headers.Values("Accept")) == 0 {
 		opts.Headers["Accept"] = []string{"application/json"}
 	}
 
@@ -264,17 +266,19 @@ func (c *St) SendRecvJson(reqBody []byte, repObj any, statusRepObj map[int]any, 
 					}
 				}
 			}
-		} else {
-			if rObj, ok := statusRepObj[statusCode]; ok {
-				err = json.Unmarshal(repBody, rObj)
-				if err != nil {
-					if opts.LogFlags&httpc.NoLogError <= 0 {
-						c.lg.Errorw(
-							opts.LogPrefix+"Fail to unmarshal body", err,
-							"opts", opts,
-							"req_body", string(reqBody),
-							"rep_body", string(repBody),
-						)
+		} else if statusCode > 0 {
+			if statusRepObj != nil {
+				if rObj, ok := statusRepObj[statusCode]; ok {
+					err = json.Unmarshal(repBody, rObj)
+					if err != nil {
+						if opts.LogFlags&httpc.NoLogError <= 0 {
+							c.lg.Errorw(
+								opts.LogPrefix+"Fail to unmarshal body", err,
+								"opts", opts,
+								"req_body", string(reqBody),
+								"rep_body", string(repBody),
+							)
+						}
 					}
 				}
 			}
@@ -289,7 +293,10 @@ func (c *St) SendJsonRecvJson(reqObj, repObj any, statusRepObj map[int]any, opts
 		opts.Headers = http.Header{}
 	}
 
-	opts.Headers["Content-Type"] = []string{"application/json"}
+	if len(c.opts.BaseHeaders.Values("Content-Type")) == 0 && len(c.opts.Headers.Values("Content-Type")) == 0 &&
+		len(opts.BaseHeaders.Values("Content-Type")) == 0 && len(opts.Headers.Values("Content-Type")) == 0 {
+		opts.Headers["Content-Type"] = []string{"application/json"}
+	}
 
 	reqBody, err := json.Marshal(reqObj)
 	if err != nil {
