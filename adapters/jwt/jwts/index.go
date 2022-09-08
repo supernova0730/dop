@@ -31,7 +31,7 @@ func (p *St) Create(sub string, expSeconds int64, payload map[string]any) (strin
 
 	repObj := jwtCreateRepSt{}
 
-	_, err := p.httpc.SendJsonRecvJson(data, &repObj, httpc.OptionsSt{
+	_, _, err := p.httpc.SendJsonRecvJson(data, &repObj, nil, httpc.OptionsSt{
 		Method: "POST",
 		Path:   "jwt",
 	})

@@ -16,7 +16,7 @@ func New(httpc httpc.HttpC) *St {
 }
 
 func (m *St) Send(data *mail.SendReqSt) bool {
-	_, err := m.httpc.SendJson(data, httpc.OptionsSt{
+	_, _, err := m.httpc.SendJson(data, httpc.OptionsSt{
 		Method: "POST",
 		Path:   "send",
 	})
