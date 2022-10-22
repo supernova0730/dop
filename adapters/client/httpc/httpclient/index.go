@@ -72,13 +72,6 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 
 	logError := opts.LogFlags&httpc.NoLogError <= 0
 
-	if opts.LogFlags&httpc.LogRequest > 0 {
-		c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"request: /"+opts.Path,
-			"uri", uri,
-			"body", string(reqBody),
-		)
-	}
-
 	var req *http.Request
 
 	if opts.Timeout > 0 {
@@ -135,6 +128,14 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 		req.SetBasicAuth(opts.BasicAuthCreds.Username, opts.BasicAuthCreds.Password)
 	}
 
+	if opts.LogFlags&httpc.LogRequest > 0 {
+		c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"request: /"+opts.Path,
+			"uri", uri,
+			"params", queryParamsString,
+			"body", string(reqBody),
+		)
+	}
+
 	// Do request
 	rep, err := opts.Client.Do(req)
 	if err != nil {
@@ -174,6 +175,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 					"status_code", rep.StatusCode,
 					"rep_body", string(repBody),
 					"uri", uri,
+					"params", queryParamsString,
 					"req_body", string(reqBody),
 				)
 			}
@@ -186,6 +188,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 					"status_code", rep.StatusCode,
 					"rep_body", string(repBody),
 					"uri", uri,
+					"params", queryParamsString,
 					"req_body", string(reqBody),
 				)
 			}
@@ -197,6 +200,7 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 				"status_code", rep.StatusCode,
 				"rep_body", string(repBody),
 				"uri", uri,
+				"params", queryParamsString,
 				"req_body", string(reqBody),
 			)
 		}
@@ -206,6 +210,8 @@ func (c *St) send(reqBody []byte, opts httpc.OptionsSt) ([]byte, int, error) {
 	if opts.LogFlags&httpc.LogResponse > 0 {
 		c.lg.Infow(opts.BaseLogPrefix+opts.LogPrefix+"response: /"+opts.Path,
 			"uri", uri,
+			"params", queryParamsString,
+			"req_body", string(reqBody),
 			"body", string(repBody),
 		)
 	}

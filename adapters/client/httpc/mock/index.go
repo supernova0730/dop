@@ -1,4 +1,4 @@
-package httpclient
+package mock
 
 import (
 	"encoding/json"
