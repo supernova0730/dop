@@ -3,8 +3,8 @@ package mock
 import (
 	"sync"
 
-	"github.com/rendau/dop/adapters/logger"
-	"github.com/rendau/dop/adapters/mail"
+	"github.com/supernova0730/dop/adapters/logger"
+	"github.com/supernova0730/dop/adapters/mail"
 )
 
 type St struct {

@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rendau/dop/adapters/db"
-	"github.com/rendau/dop/adapters/db/pg"
-	"github.com/rendau/dop/adapters/logger/zap"
-	"github.com/rendau/dop/dopTools"
-	"github.com/rendau/dop/dopTypes"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/supernova0730/dop/adapters/db"
+	"github.com/supernova0730/dop/adapters/db/pg"
+	"github.com/supernova0730/dop/adapters/logger/zap"
+	"github.com/supernova0730/dop/dopTools"
+	"github.com/supernova0730/dop/dopTypes"
 )
 
 var (

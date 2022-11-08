@@ -3,8 +3,8 @@ package websocket
 import (
 	"time"
 
-	"github.com/rendau/dop/adapters/client/httpc"
-	"github.com/rendau/dop/adapters/ws"
+	"github.com/supernova0730/dop/adapters/client/httpc"
+	"github.com/supernova0730/dop/adapters/ws"
 )
 
 type St struct {

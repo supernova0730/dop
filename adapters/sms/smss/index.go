@@ -1,7 +1,7 @@
 package smss
 
 import (
-	"github.com/rendau/dop/adapters/client/httpc"
+	"github.com/supernova0730/dop/adapters/client/httpc"
 )
 
 type St struct {

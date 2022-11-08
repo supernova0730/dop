@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rendau/dop/adapters/logger"
-	"github.com/rendau/dop/dopErrs"
-	"github.com/rendau/dop/dopTypes"
 	cors "github.com/rs/cors/wrapper/gin"
+	"github.com/supernova0730/dop/adapters/logger"
+	"github.com/supernova0730/dop/dopErrs"
+	"github.com/supernova0730/dop/dopTypes"
 )
 
 const (

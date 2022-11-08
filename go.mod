@@ -1,4 +1,4 @@
-module github.com/rendau/dop
+module github.com/supernova0730/dop
 
 go 1.18
 

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/rendau/dop/dopErrs"
-	"github.com/rendau/dop/dopTypes"
 	"github.com/spf13/viper"
+	"github.com/supernova0730/dop/dopErrs"
+	"github.com/supernova0730/dop/dopTypes"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )

@@ -1,8 +1,8 @@
 package mails
 
 import (
-	"github.com/rendau/dop/adapters/client/httpc"
-	"github.com/rendau/dop/adapters/mail"
+	"github.com/supernova0730/dop/adapters/client/httpc"
+	"github.com/supernova0730/dop/adapters/mail"
 )
 
 type St struct {

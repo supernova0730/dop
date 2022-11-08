@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/rendau/dop/dopErrs"
+	"github.com/supernova0730/dop/dopErrs"
 )
 
 func ParsePayload(token string, dst any) error {

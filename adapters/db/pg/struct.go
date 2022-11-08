@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/rendau/dop/adapters/db"
+	"github.com/supernova0730/dop/adapters/db"
 )
 
 // Options

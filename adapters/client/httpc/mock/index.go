@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/rendau/dop/adapters/client/httpc"
-	"github.com/rendau/dop/adapters/logger"
-	"github.com/rendau/dop/dopErrs"
+	"github.com/supernova0730/dop/adapters/client/httpc"
+	"github.com/supernova0730/dop/adapters/logger"
+	"github.com/supernova0730/dop/dopErrs"
 )
 
 const (

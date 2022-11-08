@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/rendau/dop/dopTypes"
+	"github.com/supernova0730/dop/dopTypes"
 )
 
 type RDBListOptions struct {
